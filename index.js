@@ -1,6 +1,6 @@
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 (function(){
-  var ref$, isType, map, concatMap, fold, sortBy, empty, filter, reject, find, flip, id, sort, mean, sum, sin, cos, values, any, each, join, all, zip, head, unique, minimum, maximum, min, max, ln, reverse, pairsToObj, len, within, Service, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, nonCuratedEvidenceCodes, nodePadding, minTicks, linkOpacity, objectify, error, notify, failWhenEmpty, doTo, anyTest, interopMines, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, Node, newNode, fetchNames, doLine, calculateSpline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, brighten, darken, termPalette, termColor, BRIGHTEN, isRoot, isLeaf, getR, countBy, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, edgeToNodes, annotateForCounts, GraphState, monitorProgress, progressMonitor, draw, drawPauseBtn, drawSourceLegend, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, relationshipTest, colourFilter, drawRootLabels, renderForce, makeGraph, doUpdate, getMinMaxSize, centreAndZoom, renderDag, rowToNode, queryParams, currentSymbol, getGeneSymbol, graphify, _graphify, main, debugColors, sortOnX, sortOnY, slice$ = [].slice;
+  var ref$, isType, map, concatMap, fold, sortBy, empty, filter, reject, find, flip, id, sort, mean, sum, sin, cos, values, any, each, join, all, zip, head, unique, minimum, maximum, min, max, ln, reverse, pairsToObj, len, within, Service, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, nonCuratedEvidenceCodes, nodePadding, minTicks, linkOpacity, objectify, error, notify, failWhenEmpty, doTo, anyTest, interopMines, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, Graph, Node, newNode, fetchNames, doLine, calculateSpline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, fetchAndMergeHomology, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, brighten, darken, termPalette, termColor, BRIGHTEN, isRoot, isLeaf, getR, countBy, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, edgeToNodes, annotateForCounts, GraphState, monitorProgress, progressMonitor, doHeightAnnotation, edgesToNodes, draw, drawPauseBtn, drawSourceLegend, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, relationshipTest, colourFilter, drawRootLabels, renderForce, makeGraph, doUpdate, getMinMaxSize, centreAndZoom, renderDag, rowToNode, queryParams, currentSymbol, getGeneSymbol, graphify, _graphify, main, debugColors, sortOnX, sortOnY, slice$ = [].slice;
   ref$ = require('prelude-ls'), isType = ref$.isType, map = ref$.map, concatMap = ref$.concatMap, fold = ref$.fold, sortBy = ref$.sortBy, empty = ref$.empty, filter = ref$.filter, reject = ref$.reject, find = ref$.find, flip = ref$.flip, id = ref$.id, sort = ref$.sort, mean = ref$.mean, sum = ref$.sum, sin = ref$.sin, cos = ref$.cos, values = ref$.values, any = ref$.any, each = ref$.each, join = ref$.join, all = ref$.all, zip = ref$.zip, head = ref$.head, unique = ref$.unique, minimum = ref$.minimum, maximum = ref$.maximum, min = ref$.min, max = ref$.max, ln = ref$.ln, reverse = ref$.reverse, pairsToObj = ref$.pairsToObj;
   len = function(it){
     return it.length;
@@ -163,6 +163,71 @@
       }
     };
   });
+  Graph = (function(){
+    Graph.displayName = 'Graph';
+    var onlyMarked, heights, relationships, sources, roots, deMark, prototype = Graph.prototype, constructor = Graph;
+    function Graph(arg$){
+      this.nodes = arg$.nodes, this.edges = arg$.edges;
+    }
+    onlyMarked = filter(compose$([
+      function(it){
+        return it.marked;
+      }, function(it){
+        return it.source;
+      }
+    ]));
+    heights = compose$([
+      sort, unique, map(function(it){
+        return it.stepsFromLeaf;
+      })
+    ]);
+    relationships = compose$([
+      sort, unique, (function(it){
+        return it.concat(['elision']);
+      }), map(function(it){
+        return it.label;
+      })
+    ]);
+    sources = compose$([
+      sort, unique, map(join('-')), function(it){
+        return it.sources;
+      }
+    ]);
+    roots = filter(function(it){
+      return it.isRoot;
+    });
+    deMark = function(n){
+      return n.isMarked = n.isReachable = n.isFocus = n.isSource = n.isTarget = false;
+    };
+    prototype.getMarkedStatements = function(){
+      return onlyMarked(this.edges);
+    };
+    prototype.unmark = function(){
+      return each(deMark, this.nodes);
+    };
+    prototype.getHeights = function(){
+      return heights(this.nodes);
+    };
+    prototype.getRelationships = function(){
+      return relationships(this.edges);
+    };
+    prototype.getSources = function(){
+      return sources(this.nodes);
+    };
+    prototype.getRoots = function(){
+      return roots(this.nodes);
+    };
+    prototype.getNode = function(nodeId){
+      return find(compose$([
+        (function(it){
+          return it === nodeId;
+        }), function(it){
+          return it.id;
+        }
+      ]), this.nodes);
+    };
+    return Graph;
+  }());
   Node = (function(){
     Node.displayName = 'Node';
     var prototype = Node.prototype, constructor = Node;
@@ -382,6 +447,20 @@
         }
       ]), edges)
     };
+  };
+  fetchAndMergeHomology = function(monitor, homologyService, dataService, graph, query){
+    var rs, mergeGraph, gettingHomologues, gettingDirect, gettingAll, gettingNames, gettingEdges;
+    rs = flatRows(bind$(dataService, 'rows'));
+    mergeGraph = mergeGraphs(graph);
+    gettingHomologues = failWhenEmpty("No homologues found")(
+    flatRows(bind$(homologyService, 'rows'))(
+    homologueQuery(query, source)));
+    gettingDirect = gettingHomologues.then(compose$([rs, directHomologyTerms]));
+    gettingAll = gettingDirect.then(compose$([rs, allHomologyTerms]));
+    gettingNames = $.when(gettingHomologues, gettingAll).then(fetchNames(service.name, bind$(dataService, 'rows')));
+    gettingEdges = gettingAll.then(compose$([bind$(dataService, 'rows'), wholeGraphQ])).then(map(rowToNode));
+    monitor([gettingHomologues, gettingDirect, gettingAll, gettingNames, gettingEdges]);
+    return $.when(gettingDirect, gettingEdges, gettingNames).then(compose$([mergeGraph, makeGraph]));
   };
   findRoots = function(arg$){
     var nodes, i$, len$, n, results$ = [];
@@ -621,7 +700,7 @@
     ]);
   };
   mergeGraphs = curry$(function(left, right){
-    var eKey, addNodeToMapping, addEdgeToMapping, f, attr, ref$, nodesById, edgesByKey, realNodes, realEdges, i$, len$, ref1$, n, real, e, source, target, ret;
+    var eKey, addNodeToMapping, addEdgeToMapping, f, attr, ref$, nodesById, edgesByKey, realNodes, realEdges, i$, len$, ref1$, n, real, e, source, target;
     console.log("Starting with " + len(left.nodes) + " nodes and " + len(left.edges) + " edges");
     console.log("Currently there are " + countBy(function(it){
       return it.isDirect;
@@ -686,29 +765,10 @@
         e.target = target;
       }
     }
-    ret = {
+    return new Graph({
       nodes: values(nodesById),
       edges: values(edgesByKey)
-    };
-    annotateForHeight(ret.nodes);
-    console.log("Merged graph has " + ret.nodes.length + " nodes and " + ret.edges.length + " edges");
-    console.log("now there are " + countBy(function(it){
-      return it.isDirect;
-    }, ret.nodes) + " direct nodes");
-    for (i$ = 0, len$ = (ref$ = ret.nodes).length; i$ < len$; ++i$) {
-      n = ref$[i$];
-      if (n.isDirect && n.sources.length === 1) {
-        console.log(n.id + ":" + n.label + " (" + n.root.label + ") is from " + n.sources);
-      }
-    }
-    console.log("There are " + countBy(compose$([
-      (function(it){
-        return it > 1;
-      }), len, function(it){
-        return it.sources;
-      }
-    ]), ret.nodes) + " merged nodes");
-    return ret;
+    });
     function fn$(it){
       return it(e);
     }
@@ -834,6 +894,18 @@
       return $progress.toggle(progress < 1);
     });
   };
+  doHeightAnnotation = function(nodes){
+    var def;
+    def = $.Deferred(function(){
+      var this$ = this;
+      return setTimeout(function(){
+        annotateForHeight(nodes);
+        return this$.resolve();
+      }, 0);
+    });
+    return def.promise();
+  };
+  edgesToNodes = compose$([unique, concatMap(edgeToNodes)]);
   draw = function(graph){
     var symbol, state, newGraph, switches, selector, stateArgs, x$, rootSelector, y$, elisionSelector, render, roots, i$, ref$, len$, r, monitorHomologueProgress;
     symbol = head(unique(concatMap(function(it){
@@ -874,7 +946,7 @@
       }).done(function(arg$){
         var nodes;
         nodes = arg$.nodes;
-        return doHeightAnnotation;
+        return doHeightAnnotation(nodes);
       }).done(function(){
         return state.set('symbol', newSymbol);
       }).done(partialize$.apply(state, [state.set, ['all', void 8], [1]])).done(compose$([
@@ -1961,10 +2033,10 @@
         markSubtree(n, 'root', n);
       }
     }
-    return {
+    return new Graph({
       nodes: nodes,
       edges: edges
-    };
+    });
   };
   doUpdate = function(group){
     var labelG;

@@ -111,6 +111,30 @@ homologue-query = (symbol, targetOrganism) -->
 
 #'relations.relationship': \is_a
 
+class Graph
+    ({@nodes, @edges}) ->
+
+    only-marked   = filter (.marked) . (.source)
+    heights       = sort . unique . map (.steps-from-leaf)
+    relationships = sort . unique . (++ [\elision]) . map (.label)
+    sources       = sort . unique . (map join \-) . (.sources)
+    roots         = filter (.is-root)
+    de-mark = (n) -> n.is-marked = n.is-reachable = n.is-focus = n.is-source = n.is-target = false
+
+    get-marked-statements: -> only-marked @edges
+
+    unmark: -> each de-mark, @nodes
+
+    get-heights: -> heights @nodes
+
+    get-relationships: -> relationships @edges
+
+    get-sources: -> sources @nodes
+
+    get-roots: -> roots @nodes
+
+    get-node: (node-id) -> find (is node-id) . (.id), @nodes
+
 class Node
     (@label, @id, @description, origin, syms) ~>
         @counts = []
@@ -229,6 +253,28 @@ unmark = (nodes) ->
 only-marked = (nodes, edges) ->
     nodes: filter (.marked), nodes
     edges: filter (.marked) << (.source), edges
+
+fetch-and-merge-homology = (monitor, homology-service, data-service, graph, query) ->
+    rs = flat-rows data-service~rows
+    merge-graph = merge-graphs graph
+
+    getting-homologues = homologue-query query, source
+        |> flat-rows homology-service~rows
+        |> fail-when-empty "No homologues found"
+
+    getting-direct = getting-homologues.then rs . direct-homology-terms
+    getting-all = getting-direct.then rs . all-homology-terms
+    getting-names = $.when getting-homologues, getting-all
+        .then fetch-names service.name, data-service~rows
+    getting-edges = getting-all
+        .then data-service~rows . whole-graph-q
+        .then map row-to-node
+
+    monitor [getting-homologues, getting-direct, getting-all, getting-names, getting-edges]
+
+    $.when getting-direct, getting-edges, getting-names
+        .then make-graph >> merge-graph
+
 
 # Roots are those nodes that only have edges coming in, not going out.
 find-roots = ({nodes}) -> [n for n in nodes when all ((is n) << (.source)), n.edges]
@@ -365,15 +411,8 @@ merge-graphs = (left, right) -->
         [source, target] = map real-nodes << (-> it e), [(.source), (.target)]
         e <<< {source, target}
 
-    ret = {nodes: (values nodes-by-id), edges: (values edges-by-key)}
-    annotate-for-height ret.nodes
-
-    console.log "Merged graph has #{ ret.nodes.length } nodes and #{ ret.edges.length } edges"
-    console.log "now there are #{ count-by (.is-direct), ret.nodes } direct nodes"
-    for n in ret.nodes when n.is-direct and n.sources.length is 1
-        console.log "#{ n.id }:#{ n.label } (#{ n.root.label }) is from #{ n.sources }"
-    console.log "There are #{ count-by (> 1) . len . (.sources), ret.nodes } merged nodes"
-    return ret
+    # nb: annotation for height was being done here..
+    new Graph {nodes: (values nodes-by-id), edges: (values edges-by-key)}
 
 edge-to-nodes = ({source, target}) -> [source, target]
 
@@ -425,6 +464,16 @@ progress-monitor = (selector) ->
         $progress.find(\.meter).css \width, "#{ progress * 100}%"
         $progress.toggle progress < 1
 
+do-height-annotation = (nodes) ->
+    def = $.Deferred -> set-timeout (~>
+        annotate-for-height nodes
+        @resolve!
+    ), 0
+    def.promise!
+
+edges-to-nodes = unique . concat-map edge-to-nodes
+
+
 draw =  (graph) -> #direct-nodes, edges, node-for-ident, symbol) ->
 
     symbol = head unique concat-map (.symbols), graph.nodes
@@ -457,7 +506,7 @@ draw =  (graph) -> #direct-nodes, edges, node-for-ident, symbol) ->
         new-graph new-symbol
             .fail notify
             .done ({nodes}) -> annotate-for-counts query, nodes
-            .done ({nodes}) -> do-height-annotation
+            .done ({nodes}) -> do-height-annotation nodes
             .done -> state.set \symbol, new-symbol
             .done state.set \all, _
             .done (.nodes) >> (filter is-root) >> head >> (state.set \root, _)
@@ -1303,7 +1352,7 @@ make-graph = (direct-nodes, edges, node-for-ident) ->
         if n.is-root
             mark-subtree n, \root, n
 
-    {nodes, edges}
+    new Graph {nodes, edges}
 
 do-update = (group) ->
 
