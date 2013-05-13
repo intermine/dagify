@@ -1,12 +1,12 @@
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 (function(){
-  var ref$, map, concatMap, fold, sortBy, empty, filter, reject, find, flip, id, sort, mean, sum, sin, cos, values, any, each, join, all, zip, head, unique, minimum, maximum, min, max, ln, reverse, pairsToObj, len, within, Service, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, nonCuratedEvidenceCodes, nodePadding, minTicks, linkOpacity, objectify, error, notify, failWhenEmpty, doTo, anyTest, interopMines, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, Node, newNode, fetchNames, doLine, calculateSpline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, brighten, darken, termPalette, termColor, BRIGHTEN, isRoot, isLeaf, getR, countBy, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, edgeToNodes, annotateForCounts, GraphState, monitorProgress, progressMonitor, draw, drawPauseBtn, drawSourceLegend, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, relationshipTest, colourFilter, drawRootLabels, renderForce, makeGraph, doUpdate, getMinMaxSize, centreAndZoom, renderDag, rowToNode, queryParams, currentSymbol, graphify, main, debugColors, sortOnX, sortOnY, slice$ = [].slice;
-  ref$ = require('prelude-ls'), map = ref$.map, concatMap = ref$.concatMap, fold = ref$.fold, sortBy = ref$.sortBy, empty = ref$.empty, filter = ref$.filter, reject = ref$.reject, find = ref$.find, flip = ref$.flip, id = ref$.id, sort = ref$.sort, mean = ref$.mean, sum = ref$.sum, sin = ref$.sin, cos = ref$.cos, values = ref$.values, any = ref$.any, each = ref$.each, join = ref$.join, all = ref$.all, zip = ref$.zip, head = ref$.head, unique = ref$.unique, minimum = ref$.minimum, maximum = ref$.maximum, min = ref$.min, max = ref$.max, ln = ref$.ln, reverse = ref$.reverse, pairsToObj = ref$.pairsToObj;
+  var ref$, isType, map, concatMap, fold, sortBy, empty, filter, reject, find, flip, id, sort, mean, sum, sin, cos, values, any, each, join, all, zip, head, unique, minimum, maximum, min, max, ln, reverse, pairsToObj, len, within, Service, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, nonCuratedEvidenceCodes, nodePadding, minTicks, linkOpacity, objectify, error, notify, failWhenEmpty, doTo, anyTest, interopMines, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, Node, newNode, fetchNames, doLine, calculateSpline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, brighten, darken, termPalette, termColor, BRIGHTEN, isRoot, isLeaf, getR, countBy, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, edgeToNodes, annotateForCounts, GraphState, monitorProgress, progressMonitor, draw, drawPauseBtn, drawSourceLegend, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, relationshipTest, colourFilter, drawRootLabels, renderForce, makeGraph, doUpdate, getMinMaxSize, centreAndZoom, renderDag, rowToNode, queryParams, currentSymbol, getGeneSymbol, graphify, _graphify, main, debugColors, sortOnX, sortOnY, slice$ = [].slice;
+  ref$ = require('prelude-ls'), isType = ref$.isType, map = ref$.map, concatMap = ref$.concatMap, fold = ref$.fold, sortBy = ref$.sortBy, empty = ref$.empty, filter = ref$.filter, reject = ref$.reject, find = ref$.find, flip = ref$.flip, id = ref$.id, sort = ref$.sort, mean = ref$.mean, sum = ref$.sum, sin = ref$.sin, cos = ref$.cos, values = ref$.values, any = ref$.any, each = ref$.each, join = ref$.join, all = ref$.all, zip = ref$.zip, head = ref$.head, unique = ref$.unique, minimum = ref$.minimum, maximum = ref$.maximum, min = ref$.min, max = ref$.max, ln = ref$.ln, reverse = ref$.reverse, pairsToObj = ref$.pairsToObj;
   len = function(it){
     return it.length;
   };
   within = curry$(function(upper, lower, actual){
-    return min(upper, max(lower, actual));
+    return min(upper, max(lower, actual(Basically(rip(out(the(guts in dagify.draw)))))));
   });
   Service = intermine.Service;
   ref$ = new Service({
@@ -89,13 +89,11 @@
       root: root
     }));
   }, interop);
-  directTerms = function(it){
+  directTerms = function(constraints){
     return {
       select: ['goAnnotation.ontologyTerm.identifier'],
       from: 'Gene',
-      where: {
-        symbol: [it]
-      }
+      where: constraints
     };
   };
   getHomologyWhereClause = function(genes){
@@ -113,14 +111,12 @@
       where: getHomologyWhereClause(genes)
     };
   };
-  allGoTerms = function(symbol){
+  allGoTerms = function(constraints){
     return {
       name: 'ALL-TERMS',
       select: ['goAnnotation.ontologyTerm.identifier', 'goAnnotation.ontologyTerm.parents.identifier'],
       from: 'Gene',
-      where: {
-        symbol: symbol
-      }
+      where: constraints
     };
   };
   flatten = concatMap(id);
@@ -2718,24 +2714,58 @@
   currentSymbol = function(){
     return queryParams.symbol || 'bsk';
   };
+  getGeneSymbol = function(getRows, id){
+    var ref$;
+    switch (ref$ = [id], false) {
+    case !isType('Number')(ref$[0]):
+      return compose$([flatRows, getRows])(
+      {
+        select: ['Gene.symbol'],
+        where: {
+          id: id
+        }
+      });
+    default:
+      return compose$([flatRows, getRows])(
+      {
+        select: ['Gene.symbol'],
+        where: id
+      });
+    }
+  };
   graphify = curry$(function(monitor, getRows, symbol){
+    var ref$;
+    switch (ref$ = [symbol], false) {
+    case !isType('String')(ref$[0]):
+      return _graphify(monitor, getRows, [symbol], {
+        symbol: [symbol]
+      });
+    case !isType('Number')(ref$[0]):
+      return _graphify(monitor, getRows, getGeneSymbol(getRows, symbol), {
+        id: [symbol]
+      });
+    default:
+      return _graphify(monitor, getRows, getGeneSymbol(getRows, symbol), symbol);
+    }
+  });
+  _graphify = function(monitor, getRows, symbols, query){
     var fetchFlat, gettingDirect, gettingAll, gettingNames, gettingEdges;
-    console.log("Drawing graph for " + symbol);
+    console.log("Drawing graph for:", query);
     fetchFlat = flatRows(getRows);
-    gettingDirect = failWhenEmpty("No annotation found for " + symbol)(
+    gettingDirect = failWhenEmpty("No annotation found for " + query)(
     fetchFlat(
     directTerms(
-    symbol)));
+    query)));
     gettingAll = fetchFlat(
     allGoTerms(
-    symbol));
-    gettingNames = gettingAll.then(fetchNames('flymine', getRows, [symbol]));
+    query));
+    gettingNames = $.when(symbols, gettingAll).then(fetchNames('flymine', getRows));
     gettingEdges = gettingAll.then(compose$([getRows, wholeGraphQ])).then(map(rowToNode));
     monitor([gettingDirect, gettingAll, gettingNames, gettingEdges]);
     return function(it){
       return it.then(makeGraph);
     }($.when(gettingDirect, gettingEdges, gettingNames));
-  });
+  };
   main = compose$([
     function(it){
       return it.then(draw, notify);

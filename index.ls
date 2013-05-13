@@ -1,9 +1,9 @@
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 
-{map, concat-map, fold, sort-by, empty, filter, reject, find, flip, id, sort, mean, sum, sin, cos, values, any, each, join, all, zip, head, unique, minimum, maximum, min, max, ln, reverse, pairs-to-obj} = require \prelude-ls
+{is-type, map, concat-map, fold, sort-by, empty, filter, reject, find, flip, id, sort, mean, sum, sin, cos, values, any, each, join, all, zip, head, unique, minimum, maximum, min, max, ln, reverse, pairs-to-obj} = require \prelude-ls
 
 len = (.length)
-within = (upper, lower, actual) --> min upper, max lower, actual
+within = (upper, lower, actual) --> min upper, max lower, actual Basically rip out the guts of dagify.draw
 
 {Service} = intermine
 
@@ -58,10 +58,10 @@ any-test = (tests, x) --> any (`do-to` x), tests
 interop-mines = objectify (.taxon-id), (({root, name}) -> (<<< {name}) new Service {root}), interop
 
 # Get the ontology terms for a gene.
-direct-terms = ->
+direct-terms = (constraints) ->
     select: <[ goAnnotation.ontologyTerm.identifier ]>
     from: \Gene
-    where: {symbol: [it]}
+    where: constraints
 
 get-homology-where-clause = (genes) ->
     primaryIdentifier: genes
@@ -72,17 +72,16 @@ direct-homology-terms = (genes) ->
     from: \Gene
     where: get-homology-where-clause genes
 
-all-go-terms = (symbol) ->
+all-go-terms = (constraints) ->
     name: \ALL-TERMS
     select: <[ goAnnotation.ontologyTerm.identifier goAnnotation.ontologyTerm.parents.identifier ]>
     from: \Gene
-    where: {symbol}
+    where: constraints
 
 flatten = concat-map id
 
 flat-rows = (get-rows, q) --> get-rows(q).then unique . flatten
 
-#all-homology-terms = (genes) -> all-go-terms! |> (<<< where: get-homology-where-clause genes)
 all-homology-terms = (children) ->
     name: \ALL-HOMOLOGY
     select: <[ parents.identifier ]>
@@ -1797,13 +1796,23 @@ query-params =
 
 current-symbol = -> query-params.symbol or \bsk
 
-graphify = (monitor, get-rows, symbol) -->
-    console.log "Drawing graph for #{ symbol }"
+get-gene-symbol = (get-rows, id) -> match id
+  | (is-type \Number) => { select: <[Gene.symbol]>, where: {id} } |> flat-rows . get-rows
+  | otherwise         => { select: <[Gene.symbol]>, where: id } |> flat-rows . get-rows
+
+graphify = (monitor, get-rows, symbol) --> match symbol
+  | (is-type \String) => _graphify monitor, get-rows, [symbol], {symbol: [symbol]}
+  | (is-type \Number) => _graphify monitor, get-rows, (get-gene-symbol get-rows, symbol), {id: [symbol]}
+  | otherwise         => _graphify monitor, get-rows, (get-gene-symbol get-rows, symbol), symbol
+
+_graphify = (monitor, get-rows, symbols, query) ->
+    console.log "Drawing graph for:", query
     fetch-flat = flat-rows get-rows
 
-    getting-direct = symbol |> direct-terms |> fetch-flat |> fail-when-empty "No annotation found for #{ symbol }"
-    getting-all = symbol |> all-go-terms |> fetch-flat
-    getting-names = getting-all.then fetch-names \flymine, get-rows, [symbol]
+    getting-direct = query |> direct-terms |> fetch-flat |> fail-when-empty "No annotation found for #{ query }"
+    getting-all = query |> all-go-terms |> fetch-flat
+    getting-names = $.when symbols, getting-all
+        .then fetch-names \flymine, get-rows
     getting-edges = getting-all.then(get-rows << whole-graph-q).then map row-to-node
 
     monitor [getting-direct, getting-all, getting-names, getting-edges]
