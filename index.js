@@ -1,7 +1,7 @@
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 (function(){
-  var ref$, map, concatMap, fold, sortBy, empty, filter, reject, find, flip, id, sort, mean, values, any, each, join, all, zip, head, unique, minimum, maximum, min, max, ln, reverse, pairsToObj, len, within, Service, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, nonCuratedEvidenceCodes, nodePadding, minTicks, linkOpacity, objectify, error, notify, failWhenEmpty, doTo, anyTest, interopMines, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, Node, newNode, fetchNames, doLine, calculateSpline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, brighten, darken, termPalette, termColor, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, edgeToNodes, annotateForCounts, GraphState, monitorProgress, progressMonitor, draw, drawPauseBtn, drawSourceLegend, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, relationshipTest, colourFilter, drawRootLabels, renderForce, makeGraph, doUpdate, getMinMaxSize, centreAndZoom, renderDag, rowToNode, queryParams, currentSymbol, graphify, main, debugColors, sortOnX, sortOnY, slice$ = [].slice;
-  ref$ = require('prelude-ls'), map = ref$.map, concatMap = ref$.concatMap, fold = ref$.fold, sortBy = ref$.sortBy, empty = ref$.empty, filter = ref$.filter, reject = ref$.reject, find = ref$.find, flip = ref$.flip, id = ref$.id, sort = ref$.sort, mean = ref$.mean, values = ref$.values, any = ref$.any, each = ref$.each, join = ref$.join, all = ref$.all, zip = ref$.zip, head = ref$.head, unique = ref$.unique, minimum = ref$.minimum, maximum = ref$.maximum, min = ref$.min, max = ref$.max, ln = ref$.ln, reverse = ref$.reverse, pairsToObj = ref$.pairsToObj;
+  var ref$, map, concatMap, fold, sortBy, empty, filter, reject, find, flip, id, sort, mean, sum, sin, cos, values, any, each, join, all, zip, head, unique, minimum, maximum, min, max, ln, reverse, pairsToObj, len, within, Service, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, nonCuratedEvidenceCodes, nodePadding, minTicks, linkOpacity, objectify, error, notify, failWhenEmpty, doTo, anyTest, interopMines, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, Node, newNode, fetchNames, doLine, calculateSpline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, brighten, darken, termPalette, termColor, BRIGHTEN, isRoot, isLeaf, getR, countBy, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, edgeToNodes, annotateForCounts, GraphState, monitorProgress, progressMonitor, draw, drawPauseBtn, drawSourceLegend, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, relationshipTest, colourFilter, drawRootLabels, renderForce, makeGraph, doUpdate, getMinMaxSize, centreAndZoom, renderDag, rowToNode, queryParams, currentSymbol, graphify, main, debugColors, sortOnX, sortOnY, slice$ = [].slice;
+  ref$ = require('prelude-ls'), map = ref$.map, concatMap = ref$.concatMap, fold = ref$.fold, sortBy = ref$.sortBy, empty = ref$.empty, filter = ref$.filter, reject = ref$.reject, find = ref$.find, flip = ref$.flip, id = ref$.id, sort = ref$.sort, mean = ref$.mean, sum = ref$.sum, sin = ref$.sin, cos = ref$.cos, values = ref$.values, any = ref$.any, each = ref$.each, join = ref$.join, all = ref$.all, zip = ref$.zip, head = ref$.head, unique = ref$.unique, minimum = ref$.minimum, maximum = ref$.maximum, min = ref$.min, max = ref$.max, ln = ref$.ln, reverse = ref$.reverse, pairsToObj = ref$.pairsToObj;
   len = function(it){
     return it.length;
   };
@@ -505,6 +505,11 @@
   getR = function(it){
     return it.radius();
   };
+  countBy = curry$(function(f, xs){
+    return function(it){
+      return it.length;
+    }(filter(f, xs));
+  });
   linkDistance = function(arg$){
     var source, target, ns, edges, markedBump, mutedPenalty, radii;
     source = arg$.source, target = arg$.target;
@@ -513,9 +518,9 @@
       var ref$;
       return ((ref$ = it.edges) != null ? ref$.length : void 8) || 0;
     }, ns));
-    markedBump = 50 * length(filter(function(it){
+    markedBump = 50 * countBy(function(it){
       return it.marked;
-    }, ns));
+    }, ns);
     mutedPenalty = any(function(it){
       return it.muted;
     }, ns) ? 100 : 0;
@@ -621,10 +626,10 @@
   };
   mergeGraphs = curry$(function(left, right){
     var eKey, addNodeToMapping, addEdgeToMapping, f, attr, ref$, nodesById, edgesByKey, realNodes, realEdges, i$, len$, ref1$, n, real, e, source, target, ret;
-    console.log("Starting with " + length(left.nodes) + " nodes and " + length(left.edges) + " edges");
-    console.log("Currently there are " + length(filter(function(it){
+    console.log("Starting with " + len(left.nodes) + " nodes and " + len(left.edges) + " edges");
+    console.log("Currently there are " + countBy(function(it){
       return it.isDirect;
-    }, left.nodes)) + " direct nodes");
+    }, left.nodes) + " direct nodes");
     eKey = function(e){
       return e.source.id + e.label + e.target.id;
     };
@@ -691,22 +696,22 @@
     };
     annotateForHeight(ret.nodes);
     console.log("Merged graph has " + ret.nodes.length + " nodes and " + ret.edges.length + " edges");
-    console.log("now there are " + len(filter(function(it){
+    console.log("now there are " + countBy(function(it){
       return it.isDirect;
-    }, ret.nodes)) + " direct nodes");
+    }, ret.nodes) + " direct nodes");
     for (i$ = 0, len$ = (ref$ = ret.nodes).length; i$ < len$; ++i$) {
       n = ref$[i$];
       if (n.isDirect && n.sources.length === 1) {
         console.log(n.id + ":" + n.label + " (" + n.root.label + ") is from " + n.sources);
       }
     }
-    console.log("There are " + len(filter(compose$([
+    console.log("There are " + countBy(compose$([
       (function(it){
         return it > 1;
       }), len, function(it){
         return it.sources;
       }
-    ]), ret.nodes)) + " merged nodes");
+    ]), ret.nodes) + " merged nodes");
     return ret;
     function fn$(it){
       return it(e);
@@ -1649,9 +1654,9 @@
       }, state, graph.nodes, zoom);
     });
     function isReady(){
-      var ref$, animating, tickK, graph, ready;
-      ref$ = state.toJSON(), animating = ref$.animating, tickK = ref$.tickK, graph = ref$.graph;
-      ready = animating === 'paused' || tickCount > tickK * ln(length(graph.edges));
+      var ref$, animating, tickK, edges, ready;
+      ref$ = state.toJSON(), animating = ref$.animating, tickK = ref$.tickK, edges = ref$.graph.edges;
+      ready = animating === 'paused' || tickCount > tickK * ln(edges.length);
       if (ready) {
         state.trigger('force:ready');
       }

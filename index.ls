@@ -1,6 +1,6 @@
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 
-{map, concat-map, fold, sort-by, empty, filter, reject, find, flip, id, sort, mean, values, any, each, join, all, zip, head, unique, minimum, maximum, min, max, ln, reverse, pairs-to-obj} = require \prelude-ls
+{map, concat-map, fold, sort-by, empty, filter, reject, find, flip, id, sort, mean, sum, sin, cos, values, any, each, join, all, zip, head, unique, minimum, maximum, min, max, ln, reverse, pairs-to-obj} = require \prelude-ls
 
 len = (.length)
 within = (upper, lower, actual) --> min upper, max lower, actual
@@ -277,11 +277,12 @@ BRIGHTEN = brighten << brighten
 is-root = (.is-root)
 is-leaf = (.is-leaf)
 get-r = (.radius!)
+count-by = (f, xs) --> (.length) filter f, xs
 
 link-distance = ({source, target}) ->
     ns = [source, target]
     edges = sum map (-> it.edges?.length or 0), ns
-    marked-bump = 50 * length filter (.marked), ns
+    marked-bump = 50 * count-by (.marked), ns
     muted-penalty = if (any (.muted), ns) then 100 else 0
     radii = sum map get-r, ns
     (3 * edges) + radii + 50 + marked-bump - muted-penalty
@@ -336,8 +337,8 @@ set-into = (m, k, v) -> m <<< pairs-to-obj [ [k, v] ]
 cache-func = ([mapping, key-func = id]) -> (mapping.) << key-func
 
 merge-graphs = (left, right) -->
-    console.log "Starting with #{ length left.nodes} nodes and #{ length left.edges } edges"
-    console.log "Currently there are #{ length filter (.is-direct), left.nodes } direct nodes"
+    console.log "Starting with #{ len left.nodes} nodes and #{ len left.edges } edges"
+    console.log "Currently there are #{ count-by (.is-direct), left.nodes } direct nodes"
 
     e-key = (e) -> e.source.id + e.label + e.target.id
     add-node-to-mapping = (m, n) -> if m[n.id] then m else set-into m, n.id, n
@@ -369,10 +370,10 @@ merge-graphs = (left, right) -->
     annotate-for-height ret.nodes
 
     console.log "Merged graph has #{ ret.nodes.length } nodes and #{ ret.edges.length } edges"
-    console.log "now there are #{ len filter (.is-direct), ret.nodes } direct nodes"
+    console.log "now there are #{ count-by (.is-direct), ret.nodes } direct nodes"
     for n in ret.nodes when n.is-direct and n.sources.length is 1
         console.log "#{ n.id }:#{ n.label } (#{ n.root.label }) is from #{ n.sources }"
-    console.log "There are #{ len filter (> 1) . len . (.sources), ret.nodes } merged nodes"
+    console.log "There are #{ count-by (> 1) . len . (.sources), ret.nodes } merged nodes"
     return ret
 
 edge-to-nodes = ({source, target}) -> [source, target]
@@ -1147,8 +1148,8 @@ render-force = (state, graph) ->
     state.once \force:ready, -> centre-and-zoom (.x), (.y), state, graph.nodes, zoom
 
     function is-ready
-        {animating, tick-k, graph} = state.toJSON!
-        ready = animating is \paused or tick-count > tick-k * ln length graph.edges
+        {animating, tick-k, graph: {edges}} = state.toJSON!
+        ready = animating is \paused or tick-count > tick-k * ln edges.length
         if ready
             state.trigger \force:ready
         return ready
