@@ -1,5 +1,10 @@
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 
+{map, concat-map, fold, sort-by, empty, filter, reject, find, flip, id, sort, mean, values, any, each, join, all, zip, head, unique, minimum, maximum, min, max, ln, reverse, pairs-to-obj} = require \prelude-ls
+
+len = (.length)
+within = (upper, lower, actual) --> min upper, max lower, actual
+
 {Service} = intermine
 
 # The Service#rows function
@@ -36,7 +41,7 @@ link-opacity =
     focus: 0.8
     unfocus: 0.2
 
-objectify = (key, value, list) --> list |> list-to-obj << map (-> [(key it), (value it)])
+objectify = (key, value, list) --> list |> pairs-to-obj << map (-> [(key it), (value it)])
 
 error = (msg) -> $.Deferred -> @reject msg
 
@@ -304,7 +309,7 @@ annotate-for-height = (nodes, level = 50) ->
     each (-> it <<< steps-from-leaf: minimum it.depths), nodes
 
 
-#console.log list-to-obj [["#{ node.id }: #{ node.label }", node.steps-from-leaf] for node in graph.nodes]
+#console.log pairs-to-obj [["#{ node.id }: #{ node.label }", node.steps-from-leaf] for node in graph.nodes]
 
 trim-graph-to-height = ({nodes, edges}, level) ->
     return {nodes, edges} unless level
@@ -322,13 +327,13 @@ trim-graph-to-height = ({nodes, edges}, level) ->
         elision = {source: n, target: n.root, label: \elision}
         filtered.edges.push elision
 
-    console.log "Down to #{ length filtered.edges }, #{ (.to-fixed 2) filtered.edges.length / edges.length * 100 }% of the original number of edges"
+    console.log "Down to #{ len filtered.edges }, #{ (.to-fixed 2) filtered.edges.length / edges.length * 100 }% of the original number of edges"
 
     return filtered
 
-set-into = (m, k, v) -> m <<< list-to-obj [ [k, v] ]
+set-into = (m, k, v) -> m <<< pairs-to-obj [ [k, v] ]
 
-cache-func = ([mapping, key-func = id]) -> (obj-to-func mapping) << key-func
+cache-func = ([mapping, key-func = id]) -> (mapping.) << key-func
 
 merge-graphs = (left, right) -->
     console.log "Starting with #{ length left.nodes} nodes and #{ length left.edges } edges"
@@ -363,11 +368,11 @@ merge-graphs = (left, right) -->
     ret = {nodes: (values nodes-by-id), edges: (values edges-by-key)}
     annotate-for-height ret.nodes
 
-    console.log "Merged graph has #{ length ret.nodes} nodes and #{ length ret.edges } edges"
-    console.log "now there are #{ length filter (.is-direct), ret.nodes } direct nodes"
+    console.log "Merged graph has #{ ret.nodes.length } nodes and #{ ret.edges.length } edges"
+    console.log "now there are #{ len filter (.is-direct), ret.nodes } direct nodes"
     for n in ret.nodes when n.is-direct and n.sources.length is 1
         console.log "#{ n.id }:#{ n.label } (#{ n.root.label }) is from #{ n.sources }"
-    console.log "There are #{ length filter (> 1) . (.length) . (.sources), ret.nodes } merged nodes"
+    console.log "There are #{ len filter (> 1) . len . (.sources), ret.nodes } merged nodes"
     return ret
 
 edge-to-nodes = ({source, target}) -> [source, target]
@@ -881,12 +886,11 @@ draw-curve = let line = d3.svg.line!interpolate \basis
 
         args |> link-spline 0.1 |> line |> (+ \Z)
 
-stratify = let sort-x = sort-by compare (.x)
-    (state) ->
+stratify = (state) ->
         {dimensions, graph, zoom} = state.toJSON!
         current-font-size = Math.min 40, 20 / zoom
-        roots = sort-x filter is-root, graph.nodes
-        leaves = sort-x filter (-> it.is-direct and it.is-leaf), graph.nodes
+        roots = sort-by (.x), filter is-root, graph.nodes
+        leaves = sort-by (.x), filter (-> it.is-direct and it.is-leaf), graph.nodes
         surface = fold min, 0, map (.y), graph.nodes
         width-range = d3.scale.linear!
             .range [0.1 * dimensions.w, 0.9 * dimensions.w]
@@ -918,7 +922,7 @@ stratify = let sort-x = sort-by compare (.x)
 
 centrify = (state) ->
     {graph, dimensions} = state.toJSON!
-    roots = sort-by (compare (.y)), filter is-root, graph.nodes
+    roots = sort-by (.y), filter is-root, graph.nodes
     mean-d = mean map (* 2) << get-r, roots
     half = (/ 2)
 
@@ -1070,7 +1074,7 @@ render-force = (state, graph) ->
     node.exit!remove!
 
     n-g.append \circle
-        .attr \class, ({sources}) -> join ' ', cons \force-term, sources
+        .attr \class, ({sources}) -> join ' ', [\force-term] ++ sources
         .classed \root, is-root
         .classed \direct, (.is-direct)
         .attr \fill, term-color
@@ -1378,7 +1382,7 @@ render-dag = (state, {reset, nodes, edges}) ->
 
     state.on \graph:reset, reset
 
-    console.log "Rendering #{ length nodes } nodes and #{ length edges } edges"
+    console.log "Rendering #{ len nodes } nodes and #{ len edges } edges"
 
     svgBBox = svg.node!getBBox!
 
@@ -1447,7 +1451,7 @@ render-dag = (state, {reset, nodes, edges}) ->
     state.on \source:highlight, (sources) ->
         pattern = new RegExp sources
         test = pattern~test << (join \-) << (.sources)
-        scale = min 2, max 1, get-descale!
+        scale = within 2, 1, get-descale!
         nodes-enter
             .classed \highlight, test
             .attr \opacity, -> if (not sources) or (test it) then 1 else 0.5
@@ -1503,7 +1507,7 @@ render-dag = (state, {reset, nodes, edges}) ->
         n.height = bbox.height + 2 * node-padding
 
     rects
-        .attr \class, ({sources}) -> join ' ', cons \dag-term, sources
+        .attr \class, ({sources}) -> join ' ', [ \dag-term ] ++ sources
         .attr \width, (.width)
         .attr \height, (.height)
         .attr \x, (1 -) << (/ 2) << (.width)
@@ -1725,9 +1729,10 @@ render-dag = (state, {reset, nodes, edges}) ->
 
     add-labels edges-enter
 
+    # Control points on the lines themselves
     edges-enter.select-all \circle.cp
         .data (d) ->
-            [p.parent = d for p in d.dagre.points]
+            each (<<< parent: d), d.dagre.points
             d.dagre.points.slice!reverse!
         .enter!
         .append \circle
@@ -1787,7 +1792,7 @@ query-params =
     |> (.substring 1)
     |> (.split \&)
     |> map (map decodeURIComponent) << (.split \=)
-    |> list-to-obj
+    |> pairs-to-obj
 
 current-symbol = -> query-params.symbol or \bsk
 
@@ -1843,8 +1848,8 @@ function draw-debug-rect svg-group, node
             .attr \opacity, 0.3
             .attr \fill, debug-colors node.id
 
-sort-on-x = sort-by compare (.l)
-sort-on-y = sort-by compare (.t)
+sort-on-x = sort-by (.l)
+sort-on-y = sort-by (.t)
 
 function overlaps {bounds:a}, {bounds:b}
     p = node-padding

@@ -1,11 +1,13 @@
-if (typeof window == 'undefined' || window === null) {
-  require('prelude-ls').installPrelude(global);
-} else {
-  prelude.installPrelude(window);
-}
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 (function(){
-  var Service, ref$, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, nonCuratedEvidenceCodes, nodePadding, minTicks, linkOpacity, objectify, error, notify, failWhenEmpty, doTo, anyTest, interopMines, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, Node, newNode, fetchNames, doLine, calculateSpline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, brighten, darken, termPalette, termColor, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, edgeToNodes, annotateForCounts, GraphState, monitorProgress, progressMonitor, draw, drawPauseBtn, drawSourceLegend, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, relationshipTest, colourFilter, drawRootLabels, renderForce, makeGraph, doUpdate, getMinMaxSize, centreAndZoom, renderDag, rowToNode, queryParams, currentSymbol, graphify, main, debugColors, sortOnX, sortOnY, slice$ = [].slice;
+  var ref$, map, concatMap, fold, sortBy, empty, filter, reject, find, flip, id, sort, mean, values, any, each, join, all, zip, head, unique, minimum, maximum, min, max, ln, reverse, pairsToObj, len, within, Service, rows, query, interop, interopLaterMaybeWhenTheyUpgrade, nonCuratedEvidenceCodes, nodePadding, minTicks, linkOpacity, objectify, error, notify, failWhenEmpty, doTo, anyTest, interopMines, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, Node, newNode, fetchNames, doLine, calculateSpline, translateEdge, getNodeDragPos, toNodeId, addLabels, markReachable, unmark, onlyMarked, findRoots, growTree, allChildren, relationshipPalette, linkFill, linkStroke, brighten, darken, termPalette, termColor, BRIGHTEN, isRoot, isLeaf, getR, linkDistance, getCharge, markDepth, annotateForHeight, trimGraphToHeight, setInto, cacheFunc, mergeGraphs, edgeToNodes, annotateForCounts, GraphState, monitorProgress, progressMonitor, draw, drawPauseBtn, drawSourceLegend, drawRelationshipLegend, linkSpline, drawCurve, stratify, centrify, unfix, relationshipTest, colourFilter, drawRootLabels, renderForce, makeGraph, doUpdate, getMinMaxSize, centreAndZoom, renderDag, rowToNode, queryParams, currentSymbol, graphify, main, debugColors, sortOnX, sortOnY, slice$ = [].slice;
+  ref$ = require('prelude-ls'), map = ref$.map, concatMap = ref$.concatMap, fold = ref$.fold, sortBy = ref$.sortBy, empty = ref$.empty, filter = ref$.filter, reject = ref$.reject, find = ref$.find, flip = ref$.flip, id = ref$.id, sort = ref$.sort, mean = ref$.mean, values = ref$.values, any = ref$.any, each = ref$.each, join = ref$.join, all = ref$.all, zip = ref$.zip, head = ref$.head, unique = ref$.unique, minimum = ref$.minimum, maximum = ref$.maximum, min = ref$.min, max = ref$.max, ln = ref$.ln, reverse = ref$.reverse, pairsToObj = ref$.pairsToObj;
+  len = function(it){
+    return it.length;
+  };
+  within = curry$(function(upper, lower, actual){
+    return min(upper, max(lower, actual));
+  });
   Service = intermine.Service;
   ref$ = new Service({
     root: 'www.flymine.org/query'
@@ -47,7 +49,7 @@ if (typeof window == 'undefined' || window === null) {
   };
   objectify = curry$(function(key, value, list){
     return compose$([
-      listToObj, map(function(it){
+      pairsToObj, map(function(it){
         return [key(it), value(it)];
       })
     ])(
@@ -597,7 +599,7 @@ if (typeof window == 'undefined' || window === null) {
         filtered.edges.push(elision);
       }
     }
-    console.log("Down to " + length(filtered.edges) + ", " + function(it){
+    console.log("Down to " + len(filtered.edges) + ", " + function(it){
       return it.toFixed(2);
     }(filtered.edges.length / edges.length * 100) + "% of the original number of edges");
     return filtered;
@@ -606,12 +608,16 @@ if (typeof window == 'undefined' || window === null) {
     }
   };
   setInto = function(m, k, v){
-    return import$(m, listToObj([[k, v]]));
+    return import$(m, pairsToObj([[k, v]]));
   };
   cacheFunc = function(arg$){
     var mapping, keyFunc, ref$;
     mapping = arg$[0], keyFunc = (ref$ = arg$[1]) != null ? ref$ : id;
-    return compose$([objToFunc(mapping), keyFunc]);
+    return compose$([
+      function(it){
+        return mapping[it];
+      }, keyFunc
+    ]);
   };
   mergeGraphs = curry$(function(left, right){
     var eKey, addNodeToMapping, addEdgeToMapping, f, attr, ref$, nodesById, edgesByKey, realNodes, realEdges, i$, len$, ref1$, n, real, e, source, target, ret;
@@ -684,8 +690,8 @@ if (typeof window == 'undefined' || window === null) {
       edges: values(edgesByKey)
     };
     annotateForHeight(ret.nodes);
-    console.log("Merged graph has " + length(ret.nodes) + " nodes and " + length(ret.edges) + " edges");
-    console.log("now there are " + length(filter(function(it){
+    console.log("Merged graph has " + ret.nodes.length + " nodes and " + ret.edges.length + " edges");
+    console.log("now there are " + len(filter(function(it){
       return it.isDirect;
     }, ret.nodes)) + " direct nodes");
     for (i$ = 0, len$ = (ref$ = ret.nodes).length; i$ < len$; ++i$) {
@@ -694,12 +700,10 @@ if (typeof window == 'undefined' || window === null) {
         console.log(n.id + ":" + n.label + " (" + n.root.label + ") is from " + n.sources);
       }
     }
-    console.log("There are " + length(filter(compose$([
+    console.log("There are " + len(filter(compose$([
       (function(it){
         return it > 1;
-      }), function(it){
-        return it.length;
-      }, function(it){
+      }), len, function(it){
         return it.sources;
       }
     ]), ret.nodes)) + " merged nodes");
@@ -1328,75 +1332,75 @@ if (typeof window == 'undefined' || window === null) {
       args)));
     };
   }.call(this, d3.svg.line().interpolate('basis')));
-  stratify = (function(sortX){
-    return function(state){
-      var ref$, dimensions, graph, zoom, currentFontSize, roots, leaves, surface, widthRange, corners, quantile, i$, len$, n;
-      ref$ = state.toJSON(), dimensions = ref$.dimensions, graph = ref$.graph, zoom = ref$.zoom;
-      currentFontSize = Math.min(40, 20 / zoom);
-      roots = sortX(filter(isRoot, graph.nodes));
-      leaves = sortX(filter(function(it){
-        return it.isDirect && it.isLeaf;
-      }, graph.nodes));
-      surface = fold(min, 0, map(function(it){
-        return it.y;
-      }, graph.nodes));
-      widthRange = d3.scale.linear().range([0.1 * dimensions.w, 0.9 * dimensions.w]).domain([0, leaves.length - 1]);
-      corners = d3.scale.quantile().domain([0, dimensions.w]).range([0, dimensions.w]);
-      quantile = (function(){
-        switch (false) {
-        case !!roots.length:
-          return function(){
-            return dimensions.w / 2;
-          };
-        default:
-          return d3.scale.quantile().domain([0, dimensions.w]).range((function(){
-            var i$, to$, results$ = [];
-            for (i$ = 0, to$ = roots.length; i$ < to$; ++i$) {
-              results$.push(i$);
-            }
-            return results$;
-          }()));
-        }
-      }());
-      roots.forEach(function(root, i){
-        root.fixed = false;
-        return mvTowards(0.01, {
-          y: surface - getR(root),
-          x: root.x
-        }, root);
-      });
-      for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
-        n = ref$[i$];
-        if (!n.isRoot && n.y + getR(n) < surface) {
-          mvTowards(0.001, {
-            x: n.root.x,
-            y: dimensions.h
-          }, n);
-        }
+  stratify = function(state){
+    var ref$, dimensions, graph, zoom, currentFontSize, roots, leaves, surface, widthRange, corners, quantile, i$, len$, n;
+    ref$ = state.toJSON(), dimensions = ref$.dimensions, graph = ref$.graph, zoom = ref$.zoom;
+    currentFontSize = Math.min(40, 20 / zoom);
+    roots = sortBy(function(it){
+      return it.x;
+    }, filter(isRoot, graph.nodes));
+    leaves = sortBy(function(it){
+      return it.x;
+    }, filter(function(it){
+      return it.isDirect && it.isLeaf;
+    }, graph.nodes));
+    surface = fold(min, 0, map(function(it){
+      return it.y;
+    }, graph.nodes));
+    widthRange = d3.scale.linear().range([0.1 * dimensions.w, 0.9 * dimensions.w]).domain([0, leaves.length - 1]);
+    corners = d3.scale.quantile().domain([0, dimensions.w]).range([0, dimensions.w]);
+    quantile = (function(){
+      switch (false) {
+      case !!roots.length:
+        return function(){
+          return dimensions.w / 2;
+        };
+      default:
+        return d3.scale.quantile().domain([0, dimensions.w]).range((function(){
+          var i$, to$, results$ = [];
+          for (i$ = 0, to$ = roots.length; i$ < to$; ++i$) {
+            results$.push(i$);
+          }
+          return results$;
+        }()));
       }
-      return leaves.forEach(function(n, i){
-        var speed;
-        speed = n.y < dimensions.h / 2 ? 0.05 : 0.005;
-        if (n.y < dimensions.h * 0.9) {
-          mvTowards(speed, {
-            x: widthRange(i),
-            y: dimensions.h * 0.9
-          }, n);
-        }
-        if (n.y >= dimensions.h * 0.85) {
-          return n.y = dimensions.h * 0.9 + currentFontSize * 1.1 * i;
-        }
-      });
-    };
-  }.call(this, sortBy(compare(function(it){
-    return it.x;
-  }))));
+    }());
+    roots.forEach(function(root, i){
+      root.fixed = false;
+      return mvTowards(0.01, {
+        y: surface - getR(root),
+        x: root.x
+      }, root);
+    });
+    for (i$ = 0, len$ = (ref$ = graph.nodes).length; i$ < len$; ++i$) {
+      n = ref$[i$];
+      if (!n.isRoot && n.y + getR(n) < surface) {
+        mvTowards(0.001, {
+          x: n.root.x,
+          y: dimensions.h
+        }, n);
+      }
+    }
+    return leaves.forEach(function(n, i){
+      var speed;
+      speed = n.y < dimensions.h / 2 ? 0.05 : 0.005;
+      if (n.y < dimensions.h * 0.9) {
+        mvTowards(speed, {
+          x: widthRange(i),
+          y: dimensions.h * 0.9
+        }, n);
+      }
+      if (n.y >= dimensions.h * 0.85) {
+        return n.y = dimensions.h * 0.9 + currentFontSize * 1.1 * i;
+      }
+    });
+  };
   centrify = function(state){
     var ref$, graph, dimensions, roots, meanD, half, centre, maxH, i$, len$, leaf, baseSpeed, speed, results$ = [];
     ref$ = state.toJSON(), graph = ref$.graph, dimensions = ref$.dimensions;
-    roots = sortBy(compare(function(it){
+    roots = sortBy(function(it){
       return it.y;
-    }), filter(isRoot, graph.nodes));
+    }, filter(isRoot, graph.nodes));
     meanD = mean(map(compose$([
       (function(it){
         return it * 2;
@@ -1573,7 +1577,7 @@ if (typeof window == 'undefined' || window === null) {
     nG.append('circle').attr('class', function(arg$){
       var sources;
       sources = arg$.sources;
-      return join(' ', cons('force-term', sources));
+      return join(' ', ['force-term'].concat(sources));
     }).classed('root', isRoot).classed('direct', function(it){
       return it.isDirect;
     }).attr('fill', termColor).attr('cx', -dimensions.w).attr('cy', -dimensions.h).attr('r', getR);
@@ -2079,7 +2083,7 @@ if (typeof window == 'undefined' || window === null) {
       }
     });
     state.on('graph:reset', reset);
-    console.log("Rendering " + length(nodes) + " nodes and " + length(edges) + " edges");
+    console.log("Rendering " + len(nodes) + " nodes and " + len(edges) + " edges");
     svgBBox = svg.node().getBBox();
     mvEdge = translateEdge(svg);
     svgGroup.selectAll('*').remove();
@@ -2166,7 +2170,7 @@ if (typeof window == 'undefined' || window === null) {
           return it.sources;
         }
       ]);
-      scale = min(2, max(1, getDescale()));
+      scale = within(2, 1, getDescale());
       return nodesEnter.classed('highlight', test).attr('opacity', function(it){
         if (!sources || test(it)) {
           return 1;
@@ -2224,7 +2228,7 @@ if (typeof window == 'undefined' || window === null) {
     rects.attr('class', function(arg$){
       var sources;
       sources = arg$.sources;
-      return join(' ', cons('dag-term', sources));
+      return join(' ', ['dag-term'].concat(sources));
     }).attr('width', function(it){
       return it.width;
     }).attr('height', function(it){
@@ -2622,11 +2626,9 @@ if (typeof window == 'undefined' || window === null) {
     });
     addLabels(edgesEnter);
     edgesEnter.selectAll('circle.cp').data(function(d){
-      var i$, ref$, len$, p;
-      for (i$ = 0, len$ = (ref$ = d.dagre.points).length; i$ < len$; ++i$) {
-        p = ref$[i$];
-        p.parent = d;
-      }
+      each((function(it){
+        return it.parent = d, it;
+      }), d.dagre.points);
       return d.dagre.points.slice().reverse();
     }).enter().append('circle').attr('class', 'cp').call(dragCp);
     relationships = reverse(unique(map(function(it){
@@ -2695,7 +2697,7 @@ if (typeof window == 'undefined' || window === null) {
       source: source
     };
   };
-  queryParams = listToObj(
+  queryParams = pairsToObj(
   map(compose$([
     map(decodeURIComponent), function(it){
       return it.split('=');
@@ -2766,12 +2768,12 @@ if (typeof window == 'undefined' || window === null) {
       return svgGroup.append('rect').attr('x', tracked.x - tracked.width / 2).attr('y', tracked.y - tracked.height / 2).attr('width', tracked.width).attr('height', tracked.height).attr('stroke', 'red').attr('stroke-width', 1).attr('opacity', 0.3).attr('fill', debugColors(node.id));
     }.call(this, toXywh(node.bounds)));
   }
-  sortOnX = sortBy(compare(function(it){
+  sortOnX = sortBy(function(it){
     return it.l;
-  }));
-  sortOnY = sortBy(compare(function(it){
+  });
+  sortOnY = sortBy(function(it){
     return it.t;
-  }));
+  });
   function overlaps(arg$, arg1$){
     var a, b, p, ref$, overlapsH, overlapsV, contained;
     a = arg$.bounds;
@@ -2811,13 +2813,6 @@ if (typeof window == 'undefined' || window === null) {
     }());
     return contained || (overlapsH && overlapsV);
   }
-  function compose$(fs){
-    return function(){
-      var i, args = arguments;
-      for (i = fs.length; i > 0; --i) { args = [fs[i-1].apply(this, args)]; }
-      return args[0];
-    };
-  }
   function curry$(f, bound){
     var context,
     _curry = function(args) {
@@ -2830,6 +2825,13 @@ if (typeof window == 'undefined' || window === null) {
       } : f;
     };
     return _curry();
+  }
+  function compose$(fs){
+    return function(){
+      var i, args = arguments;
+      for (i = fs.length; i > 0; --i) { args = [fs[i-1].apply(this, args)]; }
+      return args[0];
+    };
   }
   function flip$(f){
     return curry$(function (x, y) { return f(y, x); });
