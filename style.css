@@ -109,7 +109,7 @@ text {
 .node text.dag-label {
     stroke-width: 3px;
     font-weight: bold;
-    fill: #fff;
+    fill: #000;
 }
 .node text.focus,
 .node text.direct {

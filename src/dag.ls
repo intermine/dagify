@@ -7,6 +7,8 @@ DAGRE = require '../vendor/dagre'
 node-padding = 20px
 len = (.length)
 
+rect-color = BRIGHTEN . term-color
+
 to-node-id = (\node +) << (.replace /:/g, \_) << (.id)
 
 do-update = (group) ->
@@ -309,7 +311,8 @@ render-dag = (state, {reset, nodes, edges}) ->
         .attr \height, (.height)
         .attr \x, (1 -) << (/ 2) << (.width)
         .attr \y, (1 -) << (/ 2) << (.height)
-        .attr \fill, term-color
+        .attr \fill, rect-color
+        .attr \opacity, 0.8
         .classed \focus, (.is-focus)
         .classed \direct, (.is-direct)
         .classed \root, (.is-root)
@@ -357,8 +360,6 @@ render-dag = (state, {reset, nodes, edges}) ->
 
         highlit = map (-> it <<< {bounds: to-ltrb it.dagre{x, y, height, width}, scale}), filter is-focussed, nodes
 
-        return unless highlit.length
-
         max-rounds = 80
         round = 0
         rounds-per-run = 6
@@ -376,7 +377,7 @@ render-dag = (state, {reset, nodes, edges}) ->
                 {x, y} = to-xywh n.bounds
                 "translate(#{ x },#{ y }) scale(#{ scale })"
             focussed-nodes.select-all \rect .attr \fill, (n) ->
-                n |> term-color |> if n.is-centre then brighten else id
+                n |> rect-color |> if n.is-centre then brighten else id
             affected-edges.each (edge, i) ->
                 f = ~> d3.select(@).attr \d, reroute edge
                 set-timeout f, 0
@@ -430,6 +431,8 @@ render-dag = (state, {reset, nodes, edges}) ->
         # see fix-dag-box-collisions
         unless some-lit
             edge-paths.attr \d, spline
+            nodes-enter.select-all \rect
+                .attr \fill, rect-color
 
         svg-edges.select-all \text
             .transition!

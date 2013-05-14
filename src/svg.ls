@@ -3,14 +3,14 @@
 brighten = (.brighter!) << (d3~rgb)
 darken = (.darker!) << (d3~rgb)
 
-term-palette = darken << d3~rgb << d3.scale.category20!
-term-color = term-palette << (join \-) << (.sources) #(.id) << (.root)
+term-palette = darken << d3.scale.category20!
+term-color = term-palette << (join \-) << (.sources)
 
 relationship-palette = d3.scale.category10!
 link-fill = relationship-palette << (.label)
-link-stroke = (.darker!) << d3~rgb << link-fill
+link-stroke = darken << link-fill
 
-BRIGHTEN = brighten << brighten
+BRIGHTEN = brighten . brighten
 
 colour-filter = (test, x) --> if test x then brighten else id
 
