@@ -26,6 +26,9 @@ jstl/%: views/%.eco
 browser:
 	mkdir browser
 
+dist:
+	mkdir dist
+
 dagify.js: $(LIB)
 	$(BROWSERIFY) -r ./lib/dagify.js:dagify > dagify.js
 
@@ -41,9 +44,14 @@ package.json: package.ls
 templates.js: jstl $(TEMPL)
 	cat jstl/* > templates.js
 
+report-widget: lib ontology-widget.js dist
+	cp ontology-widget.js dist/presenter.js
+	cp views/*.eco dist/
+	cp style.css dist/
+
 all: clean lib templates.js dagify.js demo.js ontology-widget.js
 
-.PHONY: all build-browser dev-install loc clean
+.PHONY: all build-browser dev-install loc clean report-widget
 
 dev-intall: package.json
 	npm install .
@@ -53,6 +61,7 @@ loc:
 
 clean:
 	rm --force --recursive lib
+	rm --force --recursive dist
 	rm *.js
 
 build-browser: dagify.js
