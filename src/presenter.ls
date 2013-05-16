@@ -173,6 +173,7 @@ class OntologyWidget extends Backbone.View
       merging.done (merged) ~> @model.set roots: merged.getRoots()
 
     linkRow: (link) ->
+      evt = \relationship:highlight
       $row = $ @templates['ontologyRelationshipRow.html'] link
       $row.on('mouseout',  ~> $row.removeClass('highlit'); @model.trigger evt, null)
           .on('mouseover', ~> $row.addClass('highlit'); @model.trigger evt, link)
