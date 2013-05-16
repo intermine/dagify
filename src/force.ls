@@ -396,7 +396,7 @@ render-force = (state, graph) ->
         update-marked!
 
     function update-marked
-        state.trigger \graph:marked
+        state.trigger \nodes:marked
         current-animation = state.get \animating
         state.set \animating, \running
         force.start! # needed to recalculate charges

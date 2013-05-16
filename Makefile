@@ -49,7 +49,7 @@ report-widget: lib ontology-widget.js dist
 	cp views/*.eco dist/
 	cp style.css dist/
 
-all: clean lib templates.js dagify.js demo.js ontology-widget.js
+all: clean lib templates.js dagify.js demo.js ontology-widget.js report-widget
 
 .PHONY: all build-browser dev-install loc clean report-widget
 
@@ -62,6 +62,7 @@ loc:
 clean:
 	rm --force --recursive lib
 	rm --force --recursive dist
-	rm *.js
+	rm --force --recursive jstl
+	rm --force *.js
 
 build-browser: dagify.js

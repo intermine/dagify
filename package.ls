@@ -29,4 +29,6 @@ dev-dependencies:
     'uglify-js': '~2.2.5'
     mocha: '~1.8.2'
     browserify: '~2.13.2'
+    eco: "~1.1.0-rc-3"
+    'prelude-ls': "~1.0.0"
 
