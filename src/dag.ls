@@ -147,6 +147,14 @@ translate-edge = (svg, e, dx, dy) -->
         p.x = p.x + dx
         p.y = p.y + dy
 
+respond-to-marking = ->
+    return if @state.get(\view) isnt \Dag
+    filtered = only-marked @nodes, @edges
+    if filtered.nodes.length
+        @re-render filtered <<< {@reset}
+    else
+        @reset!
+
 render-dag = (state, {reset, nodes, edges}) ->
 
     svg = d3.select state.get \svg
@@ -154,6 +162,8 @@ render-dag = (state, {reset, nodes, edges}) ->
     svg.select-all(\g).remove!
 
     dimensions = state.get \dimensions
+
+    state.off 'nodes:marked', respond-to-marking
 
     svg
        .attr \width, dimensions.w
@@ -172,13 +182,7 @@ render-dag = (state, {reset, nodes, edges}) ->
     reset ?= -> state.set \graph, {nodes, edges} if state.get(\view) is \Dag
     get-descale = -> 1 / state.get \zoom
 
-    state.on \nodes:marked, ->
-        return if state.get(\view) isnt \Dag
-        filtered = only-marked nodes, edges
-        if filtered.nodes.length
-            re-render filtered <<< {reset}
-        else
-            reset!
+    state.on \nodes:marked, respond-to-marking, {state, reset, re-render, nodes, edges}
 
     console.log "Rendering #{ len nodes } nodes and #{ len edges } edges"
 

@@ -363,8 +363,6 @@ render-force = (state, graph) ->
             .duration 50ms
             .attr \opacity, -> if (not term) or (it.source is term) then link-opacity.focus else link-opacity.unfocus
 
-    state.on \nodes:marked, update-marked
-
     state.once \force:ready, -> centre-and-zoom (.x), (.y), state, graph.nodes, zoom
 
     _is-ready = false
@@ -389,11 +387,10 @@ render-force = (state, graph) ->
             while (count++ < max) and n = queue.shift!
                 n.marked = true
                 each queue~push, moar n
-            update-marked!
+        update-marked!
 
     function toggle-subtree root
         mark-subtree root, \muted, not root.muted
-        update-marked!
 
     function update-marked
         state.trigger \nodes:marked
