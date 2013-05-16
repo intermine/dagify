@@ -216,9 +216,9 @@ render-dag = (state, {reset, nodes, edges}) ->
             reset!
         else
             mark-reachable node
-            state.trigger \graph:marked
             filtered = only-marked nodes, edges
             re-render filtered <<< {reset}
+        state.trigger \nodes:marked
 
     state.on \relationship:highlight, (link) ->
         scale = get-descale!
