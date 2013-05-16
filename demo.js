@@ -242,7 +242,654 @@ function curry$(f, bound){
   return _curry();
 }
 
-},{"./Func.js":5,"./List.js":6,"./Obj.js":7,"./Str.js":8,"./Num.js":9}],6:[function(require,module,exports){
+},{"./Func.js":5,"./List.js":6,"./Obj.js":7,"./Str.js":8,"./Num.js":9}],2:[function(require,module,exports){
+(function(){
+  var ref$, reject, empty, any, min, max, each, map, pairsToObj, objectify, error, len, within, notify, failWhenEmpty, doTo, anyTest, relationshipTest;
+  ref$ = require('prelude-ls'), reject = ref$.reject, empty = ref$.empty, any = ref$.any, min = ref$.min, max = ref$.max, each = ref$.each, map = ref$.map, pairsToObj = ref$.pairsToObj;
+  objectify = curry$(function(key, value, list){
+    return compose$([
+      pairsToObj, map(function(it){
+        return [key(it), value(it)];
+      })
+    ])(
+    list);
+  });
+  error = function(msg){
+    return $.Deferred(function(){
+      return this.reject(msg);
+    });
+  };
+  len = function(it){
+    return it.length;
+  };
+  within = curry$(function(upper, lower, actual){
+    return min(upper, max(lower, actual));
+  });
+  notify = function(it){
+    return alert(it);
+  };
+  failWhenEmpty = curry$(function(msg, promise){
+    return promise.then(function(it){
+      if (empty(it)) {
+        return error(msg);
+      } else {
+        return it;
+      }
+    });
+  });
+  doTo = function(f, x){
+    return f(x);
+  };
+  anyTest = curry$(function(tests, x){
+    return any(flip$(doTo)(x), tests);
+  });
+  relationshipTest = curry$(function(link, defVal, x){
+    switch (false) {
+    case !(link && link.label):
+      return link === x;
+    case !link:
+      return link === x.label;
+    default:
+      return defVal;
+    }
+  });
+  module.exports = {
+    toLtrb: toLtrb,
+    toXywh: toXywh,
+    markSubtree: markSubtree,
+    objectify: objectify,
+    error: error,
+    len: len,
+    within: within,
+    notify: notify,
+    failWhenEmpty: failWhenEmpty,
+    doTo: doTo,
+    anyTest: anyTest,
+    relationshipTest: relationshipTest
+  };
+  function markSubtree(root, prop, val){
+    var queue, moar, n;
+    queue = [root];
+    moar = function(arg$){
+      var edges;
+      edges = arg$.edges;
+      return reject(compose$([
+        (function(it){
+          return it === val;
+        }), function(it){
+          return it[prop];
+        }
+      ]))(
+      map(function(it){
+        return it.source;
+      }, edges));
+    };
+    while (n = queue.shift()) {
+      n[prop] = val;
+      each(bind$(queue, 'push'), moar(n));
+    }
+    return root;
+  }
+  function toLtrb(arg$, k){
+    var x, y, height, width;
+    x = arg$.x, y = arg$.y, height = arg$.height, width = arg$.width;
+    k == null && (k = 1);
+    return {
+      l: x - k * width / 2,
+      t: y - k * height / 2,
+      r: x + k * width / 2,
+      b: y + k * height / 2
+    };
+  }
+  function toXywh(arg$){
+    var l, t, r, b;
+    l = arg$.l, t = arg$.t, r = arg$.r, b = arg$.b;
+    return {
+      x: l + (r - l) / 2,
+      y: t + (b - t) / 2,
+      height: b - t,
+      width: r - l
+    };
+  }
+  function compose$(fs){
+    return function(){
+      var i, args = arguments;
+      for (i = fs.length; i > 0; --i) { args = [fs[i-1].apply(this, args)]; }
+      return args[0];
+    };
+  }
+  function curry$(f, bound){
+    var context,
+    _curry = function(args) {
+      return f.length > 1 ? function(){
+        var params = args ? args.concat() : [];
+        context = bound ? context || this : this;
+        return params.push.apply(params, arguments) <
+            f.length && arguments.length ?
+          _curry.call(context, params) : f.apply(context, params);
+      } : f;
+    };
+    return _curry();
+  }
+  function flip$(f){
+    return curry$(function (x, y) { return f(y, x); });
+  }
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+}).call(this);
+
+},{"prelude-ls":4}],10:[function(require,module,exports){
+// shim for using process in browser
+
+var process = module.exports = {};
+
+process.nextTick = (function () {
+    var canSetImmediate = typeof window !== 'undefined'
+    && window.setImmediate;
+    var canPost = typeof window !== 'undefined'
+    && window.postMessage && window.addEventListener
+    ;
+
+    if (canSetImmediate) {
+        return function (f) { return window.setImmediate(f) };
+    }
+
+    if (canPost) {
+        var queue = [];
+        window.addEventListener('message', function (ev) {
+            if (ev.source === window && ev.data === 'process-tick') {
+                ev.stopPropagation();
+                if (queue.length > 0) {
+                    var fn = queue.shift();
+                    fn();
+                }
+            }
+        }, true);
+
+        return function nextTick(fn) {
+            queue.push(fn);
+            window.postMessage('process-tick', '*');
+        };
+    }
+
+    return function nextTick(fn) {
+        setTimeout(fn, 0);
+    };
+})();
+
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+}
+
+// TODO(shtylman)
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+
+},{}],3:[function(require,module,exports){
+(function(process){(function(){
+  var DEFAULT_GRAPH_STATE, $, dagify, ref$, map, id, each, first, zipAll, objectify, GraphState, getGraphState, OntologyWidget, Widget, slice$ = [].slice;
+  DEFAULT_GRAPH_STATE = {
+    view: 'Dag',
+    smallGraphThreshold: 20,
+    jiggle: null,
+    spline: 'curved',
+    dagDirection: 'LR',
+    maxmarked: 20,
+    tickK: 15,
+    translate: [5, 5],
+    elision: null
+  };
+  $ = jQuery;
+  dagify = require('./dagify');
+  ref$ = require('prelude-ls'), map = ref$.map, id = ref$.id, each = ref$.each, first = ref$.first, zipAll = ref$.zipAll;
+  objectify = require('./util').objectify;
+  GraphState = require('./state');
+  getGraphState = function(config){
+    var initVals, data;
+    initVals = {
+      root: null,
+      animating: 'waiting'
+    };
+    data = import$(import$(import$({}, DEFAULT_GRAPH_STATE), initVals), config.graphState);
+    if (data.query == null) {
+      throw new Error("No query provided.");
+    }
+    return new GraphState(data);
+  };
+  OntologyWidget = (function(superclass){
+    var prototype = extend$((import$(OntologyWidget, superclass).displayName = 'OntologyWidget', OntologyWidget), superclass).prototype, constructor = OntologyWidget;
+    prototype.initialize = function(config, templates){
+      var Service;
+      this.config = config;
+      this.templates = templates;
+      Service = intermine.Service;
+      this.service = new Service(this.config.service);
+      this.model = getGraphState(this.config);
+      return this.interopMines = objectify(function(it){
+        return it.taxonId;
+      }, function(grp){
+        var name;
+        name = grp.name;
+        return (function(it){
+          return it.name = name, it;
+        })(new Service(grp));
+      })(
+      this.config.interop);
+    };
+    prototype.toString = function(){
+      return "[OntologyWidget(" + this.cid + ")]";
+    };
+    prototype.render = function(target){
+      var elem;
+      elem = $(target)[0];
+      this.setElement(elem);
+      if (!this.model.has('dimensions')) {
+        this.model.set({
+          dimensions: {
+            w: elem.offsetWidth,
+            h: elem.offsetHeight || 600
+          }
+        });
+      }
+      this.renderChrome();
+      this.startListening();
+      this.loadData();
+      return this;
+    };
+    OntologyWidget.BINDINGS = {
+      tickK: '.min-ticks',
+      jiggle: '.jiggle',
+      spline: '.spline',
+      view: '.graph-view',
+      dagDirection: '.dag-direction'
+    };
+    prototype.startListening = function(){
+      var key, ref$, sel, this$ = this;
+      for (key in ref$ = constructor.BINDINGS) {
+        sel = ref$[key];
+        fn$();
+      }
+      this.listenTo(this.model, 'change:query', this.loadData);
+      this.listenTo(this.model, 'change:query', bind$(this, 'resetHomologyButtons'));
+      this.listenTo(this.model, 'change:heights', this.fillElisionSelector);
+      this.listenTo(this.model, 'change:root', this.onRootChange);
+      this.listenTo(this.model, 'change:elision', function(m, elision){
+        return this$.$('.elision').val(elision);
+      });
+      this.listenTo(this.model, 'change:all', bind$(this, 'renderRoots'));
+      this.listenTo(this.model, 'change:all', function(m, graph){
+        return m.set({
+          root: first(graph.getRoots())
+        });
+      });
+      this.listenTo(this.model, 'change:graph change:view change:dagDirection', bind$(this, 'presentGraph'));
+      this.listenTo(this.model, 'nodes:marked change:all', bind$(this, 'showOntologyTable'));
+      this.on('controls:changed', function(){
+        return this$.$el.foundation();
+      });
+      return this.on('graph:reset', function(){
+        this$.model.get('all').unmark();
+        return this$.model.trigger('nodes:marked');
+      });
+      function fn$(sel){
+        return this$.listenTo(this$.model, 'change:' + key, function(m, v){
+          return this$.$(sel).val(v);
+        });
+      }
+    };
+    prototype.onRootChange = function(){
+      var root;
+      root = this.model.get('root');
+      console.log("Root is now " + (root != null ? root.id : void 8) + ": " + (root != null ? root.label : void 8));
+      if (root != null) {
+        return this.$('.graph-root').val(root.id);
+      }
+    };
+    prototype.renderRoots = function(){
+      var roots, select, i$, ref$, len$, r;
+      roots = this.model.get('all').getRoots();
+      select = this.$('select.graph-root').empty();
+      for (i$ = 0, len$ = (ref$ = roots.concat({
+        id: null,
+        label: 'All'
+      })).length; i$ < len$; ++i$) {
+        r = ref$[i$];
+        select.append("<option value=\"" + r.id + "\">" + r.label + "</option>");
+      }
+      return this.trigger('controls:changed');
+    };
+    prototype.presentGraph = function(){
+      var view, render, this$ = this;
+      console.log("Presenting graph to the world");
+      view = this.model.get('view');
+      render = dagify['render' + view] || dagify.renderDag;
+      return process.nextTick(function(){
+        return render(this$.model, this$.model.get('graph'));
+      });
+    };
+    prototype.resetHomologyButtons = function(){
+      return this.$('.interop-sources a').removeClass('disabled');
+    };
+    prototype.fillElisionSelector = function(){
+      var elisionSelector, i$, ref$, len$, h, text, level;
+      elisionSelector = this.$('select.elision');
+      elisionSelector.empty();
+      for (i$ = 0, len$ = (ref$ = this.model.get('heights')).length; i$ < len$; ++i$) {
+        h = ref$[i$];
+        text = h === 0
+          ? "Show all terms"
+          : h === 1
+            ? "Show only direct terms, and the root term"
+            : "Show all terms within " + h + " steps of a directly annotated term";
+        elisionSelector.append("<option value=\"" + h + "\">" + text + "</option>");
+      }
+      this.trigger('controls:changed');
+      if (level = this.model.get('elision')) {
+        return elisionSelector.val(level);
+      }
+    };
+    prototype.renderChrome = function(){
+      var key, ref$, sel;
+      this.$el.html(this.templates['widget.html']());
+      for (key in ref$ = Widget.BINDINGS) {
+        sel = ref$[key];
+        this.$(sel).val(this.model.get(key));
+      }
+      this.model.set('svg', first(this.$el.find('svg')));
+      this.setUpOntologyTable();
+      return this.setupInterop();
+    };
+    prototype.setUpOntologyTable = function(){
+      var ref$, w, h, table;
+      ref$ = this.model.get('dimensions'), w = ref$.w, h = ref$.h;
+      table = this.$('.ontology-table').addClass('open').css({
+        top: 0.05 * h,
+        left: w - 50,
+        height: 0.9 * h,
+        width: 0.6 * w
+      });
+      table.find('.scroll-container').css({
+        'max-height': 0.8 * h
+      });
+      return table.find('table').addClass('tablesorter').tablesorter();
+    };
+    prototype.setupInterop = function(){
+      var $ul, self, toOption;
+      $ul = this.$('.interop-sources');
+      self = this;
+      toOption = function(group){
+        var $li;
+        $li = $("<li><a class=\"small button\">" + group.name + "</a></li>");
+        return $li.find('a').on('click', function(){
+          var $this;
+          $this = $(this);
+          if ($this.hasClass('disabled')) {
+            return;
+          }
+          $this.addClass('disabled');
+          return self.addDataFrom(group.taxonId);
+        });
+      };
+      return each(compose$([bind$($ul, 'append'), toOption]), this.config.interop);
+    };
+    prototype.addDataFrom = function(taxonId){
+      var service, graph, query, monitor, merging, this$ = this;
+      service = this.interopMines[taxonId];
+      graph = this.model.get('all');
+      query = this.model.get('query');
+      monitor = dagify.progressMonitor(this.$('.homologue-progress'));
+      merging = dagify.fetchAndMergeHomology(monitor, this.service, service, graph, query, taxonId);
+      merging.fail(this.reportError);
+      merging.done(function(merged){
+        return this$.annotate(merged);
+      });
+      merging.done(function(merged){
+        return this$.model.set({
+          all: merged
+        });
+      });
+      return merging.done(function(merged){
+        return this$.model.set({
+          roots: merged.getRoots()
+        });
+      });
+    };
+    prototype.linkRow = function(link){
+      var evt, $row, this$ = this;
+      evt = 'relationship:highlight';
+      $row = $(this.templates['ontologyRelationshipRow.html'](link));
+      return $row.on('mouseout', function(){
+        $row.removeClass('highlit');
+        return this$.model.trigger(evt, null);
+      }).on('mouseover', function(){
+        $row.addClass('highlit');
+        return this$.model.trigger(evt, link);
+      });
+    };
+    prototype.termRow = function(term){
+      var evt, $row, this$ = this;
+      evt = 'term:highlight';
+      $row = $(this.templates['ontologyTermRow.html'](term));
+      return $row.on('mouseout', function(){
+        $row.removeClass('highlit');
+        return this$.model.trigger(evt, null);
+      }).on('mouseover', function(){
+        $row.addClass('highlit');
+        return this$.model.trigger(evt, term);
+      });
+    };
+    prototype.showOntologyTable = function(){
+      var ref$, w, h, markedStatements, $tables, templates, filters, i$, len$, ref1$, $el, tmpl, f;
+      ref$ = this.model.get('dimensions'), w = ref$.w, h = ref$.h;
+      markedStatements = this.model.get('all').getMarkedStatements();
+      console.log("Got " + markedStatements.length + " marked statements");
+      $tables = map(bind$(this, '$'), ['.marked-statements', '.marked-terms']);
+      templates = [bind$(this, 'linkRow'), bind$(this, 'termRow')];
+      filters = [id, dagify.edgesToNodes];
+      each(function(it){
+        return it.find('tbody').empty();
+      }, $tables);
+      if (markedStatements.length) {
+        for (i$ = 0, len$ = (ref$ = zipAll($tables, templates, filters)).length; i$ < len$; ++i$) {
+          ref1$ = ref$[i$], $el = ref1$[0], tmpl = ref1$[1], f = ref1$[2];
+          each(compose$([bind$($el, 'append'), tmpl]), f(markedStatements));
+        }
+        this.$('.ontology-table').show().foundation('section', 'reflow').find('table').trigger('update');
+        return this.toggleOntologyTable();
+      } else {
+        return this.$('.ontology-table').hide();
+      }
+    };
+    prototype.events = function(){
+      var state, evts, key, ref$, sel, this$ = this;
+      state = this.model;
+      evts = {
+        'submit .graph-control': function(e){
+          return e.preventDefault();
+        },
+        'click .graph-control .resizer': 'toggleDisplayOptions',
+        'click .graph-reset': function(){
+          return this$.trigger('graph:reset');
+        },
+        'click .marked-terms .description .more': function(it){
+          return $(it.target).hide().prev().hide().end().next().show();
+        }
+      };
+      for (key in ref$ = Widget.BINDINGS) {
+        sel = ref$[key];
+        evts['change ' + sel] = compose$([partialize$.apply(state, [state.set, [key, void 8], [1]]), fn$]);
+      }
+      evts['click .button.symbol'] = function(){
+        var newSymbol;
+        newSymbol = this.$('input.symbol').val();
+        return state.set({
+          query: newSymbol
+        });
+      };
+      evts['change .graph-root'] = function(e){
+        var rootId;
+        rootId = $(e.target).val();
+        return state.set({
+          root: state.get('all').getNode(rootId)
+        });
+      };
+      evts['change .elision'] = function(it){
+        return state.set('elision', parseInt($(it.target).val(), 10));
+      };
+      evts['click .slide-control'] = bind$(this, 'toggleOntologyTable');
+      return evts;
+      function fn$(it){
+        return $(it.target).val();
+      }
+    };
+    prototype.toggleOntologyTable = function(){
+      var getLeft, table, wasOpen, icon, this$ = this;
+      getLeft = function(isOpen){
+        var w;
+        w = $('body').outerWidth();
+        return w - 50 - (isOpen
+          ? 0
+          : this$.$('.ontology-table .section-container').outerWidth());
+      };
+      table = this.$('.ontology-table');
+      wasOpen = table.hasClass('open');
+      table.toggleClass('open').animate({
+        left: getLeft(wasOpen)
+      });
+      return icon = $('.slide-control i').removeClass('icon-chevron-right icon-chevron-left').addClass(wasOpen ? 'icon-chevron-left' : 'icon-chevron-right');
+    };
+    prototype.toggleDisplayOptions = function(){
+      this.$('.graph-control .resizer').toggleClass('icon-resize-small icon-resize-full');
+      return this.$('.graph-control .hidable').slideToggle();
+    };
+    prototype.loadData = function(){
+      var monitor, building, this$ = this;
+      monitor = dagify.progressMonitor(this.$('.dag .progress'));
+      building = dagify.graphify(monitor, this.service.rows, this.model.get('query'));
+      building.fail(this.reportError);
+      building.done(function(graph){
+        return this$.annotate(graph);
+      });
+      building.done(function(graph){
+        return this$.model.set({
+          all: graph
+        });
+      });
+      return building.done(function(graph){
+        return this$.model.set({
+          roots: graph.getRoots()
+        });
+      });
+    };
+    prototype.annotate = function(graph){
+      var this$ = this;
+      dagify.annotateForCounts(this.service.query, graph.nodes);
+      return dagify.doHeightAnnotation(graph.nodes).done(function(){
+        this$.model.set({
+          heights: graph.getHeights()
+        });
+        return this$.model.trigger('annotated:height');
+      });
+    };
+    prototype.reportError = function(e){
+      return alert("Error: " + e);
+    };
+    function OntologyWidget(){
+      this.loadData = bind$(this, 'loadData', prototype);
+      this.fillElisionSelector = bind$(this, 'fillElisionSelector', prototype);
+      this.onRootChange = bind$(this, 'onRootChange', prototype);
+      OntologyWidget.superclass.apply(this, arguments);
+    }
+    return OntologyWidget;
+  }(Backbone.View));
+  Widget = OntologyWidget;
+  module.exports = OntologyWidget;
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function compose$(fs){
+    return function(){
+      var i, args = arguments;
+      for (i = fs.length; i > 0; --i) { args = [fs[i-1].apply(this, args)]; }
+      return args[0];
+    };
+  }
+  function partialize$(f, args, where){
+    var context = this;
+    return function(){
+      var params = slice$.call(arguments), i,
+          len = params.length, wlen = where.length,
+          ta = args ? args.concat() : [], tw = where ? where.concat() : [];
+      for(i = 0; i < len; ++i) { ta[tw[0]] = params[i]; tw.shift(); }
+      return len < wlen && len ?
+        partialize$.apply(context, [f, ta, tw]) : f.apply(context, ta);
+    };
+  }
+}).call(this);
+
+})(require("__browserify_process"))
+},{"./dagify":11,"./util":2,"./state":12,"prelude-ls":4,"__browserify_process":10}],5:[function(require,module,exports){
+var curry, flip, fix, apply;
+curry = function(f){
+  return curry$(f);
+};
+flip = curry$(function(f, x, y){
+  return f(y, x);
+});
+fix = function(f){
+  return function(g, x){
+    return function(){
+      return f(g(g)).apply(null, arguments);
+    };
+  }(function(g, x){
+    return function(){
+      return f(g(g)).apply(null, arguments);
+    };
+  });
+};
+apply = curry$(function(f, list){
+  return f.apply(null, list);
+});
+module.exports = {
+  curry: curry,
+  flip: flip,
+  fix: fix,
+  apply: apply
+};
+function curry$(f, bound){
+  var context,
+  _curry = function(args) {
+    return f.length > 1 ? function(){
+      var params = args ? args.concat() : [];
+      context = bound ? context || this : this;
+      return params.push.apply(params, arguments) <
+          f.length && arguments.length ?
+        _curry.call(context, params) : f.apply(context, params);
+    } : f;
+  };
+  return _curry();
+}
+
+},{}],6:[function(require,module,exports){
 var each, map, compact, filter, reject, partition, find, head, first, tail, last, initial, empty, reverse, unique, fold, foldl, fold1, foldl1, foldr, foldr1, unfoldr, concat, concatMap, flatten, difference, intersection, union, countBy, groupBy, andList, orList, any, all, sort, sortWith, sortBy, sum, product, mean, average, maximum, minimum, scan, scanl, scan1, scanl1, scanr, scanr1, slice, take, drop, splitAt, takeWhile, dropWhile, span, breakList, zip, zipWith, zipAll, zipAllWith, slice$ = [].slice;
 each = curry$(function(f, xs){
   var i$, len$, x;
@@ -850,48 +1497,6 @@ function compose$(fs){
 }
 function not$(x){ return !x; }
 
-},{}],5:[function(require,module,exports){
-var curry, flip, fix, apply;
-curry = function(f){
-  return curry$(f);
-};
-flip = curry$(function(f, x, y){
-  return f(y, x);
-});
-fix = function(f){
-  return function(g, x){
-    return function(){
-      return f(g(g)).apply(null, arguments);
-    };
-  }(function(g, x){
-    return function(){
-      return f(g(g)).apply(null, arguments);
-    };
-  });
-};
-apply = curry$(function(f, list){
-  return f.apply(null, list);
-});
-module.exports = {
-  curry: curry,
-  flip: flip,
-  fix: fix,
-  apply: apply
-};
-function curry$(f, bound){
-  var context,
-  _curry = function(args) {
-    return f.length > 1 ? function(){
-      var params = args ? args.concat() : [];
-      context = bound ? context || this : this;
-      return params.push.apply(params, arguments) <
-          f.length && arguments.length ?
-        _curry.call(context, params) : f.apply(context, params);
-    } : f;
-  };
-  return _curry();
-}
-
 },{}],7:[function(require,module,exports){
 var values, keys, pairsToObj, objToPairs, listsToObj, objToLists, empty, each, map, compact, filter, reject, partition, find;
 values = function(object){
@@ -1047,6 +1652,76 @@ function curry$(f, bound){
   return _curry();
 }
 
+},{}],8:[function(require,module,exports){
+var split, join, lines, unlines, words, unwords, chars, unchars, reverse, repeat;
+split = curry$(function(sep, str){
+  return str.split(sep);
+});
+join = curry$(function(sep, xs){
+  return xs.join(sep);
+});
+lines = function(str){
+  if (!str.length) {
+    return [];
+  }
+  return str.split('\n');
+};
+unlines = function(it){
+  return it.join('\n');
+};
+words = function(str){
+  if (!str.length) {
+    return [];
+  }
+  return str.split(/[ ]+/);
+};
+unwords = function(it){
+  return it.join(' ');
+};
+chars = function(it){
+  return it.split('');
+};
+unchars = function(it){
+  return it.join('');
+};
+reverse = function(str){
+  return str.split('').reverse().join('');
+};
+repeat = curry$(function(n, str){
+  var out, res$, i$;
+  res$ = [];
+  for (i$ = 0; i$ < n; ++i$) {
+    res$.push(str);
+  }
+  out = res$;
+  return out.join('');
+});
+module.exports = {
+  split: split,
+  join: join,
+  lines: lines,
+  unlines: unlines,
+  words: words,
+  unwords: unwords,
+  chars: chars,
+  unchars: unchars,
+  reverse: reverse,
+  repeat: repeat
+};
+function curry$(f, bound){
+  var context,
+  _curry = function(args) {
+    return f.length > 1 ? function(){
+      var params = args ? args.concat() : [];
+      context = bound ? context || this : this;
+      return params.push.apply(params, arguments) <
+          f.length && arguments.length ?
+        _curry.call(context, params) : f.apply(context, params);
+    } : f;
+  };
+  return _curry();
+}
+
 },{}],9:[function(require,module,exports){
 var max, min, negate, abs, signum, quot, rem, div, mod, recip, pi, tau, exp, sqrt, ln, pow, sin, tan, cos, asin, acos, atan, atan2, truncate, round, ceiling, floor, isItNaN, even, odd, gcd, lcm;
 max = curry$(function(x$, y$){
@@ -1178,673 +1853,7 @@ function curry$(f, bound){
   return _curry();
 }
 
-},{}],8:[function(require,module,exports){
-var split, join, lines, unlines, words, unwords, chars, unchars, reverse, repeat;
-split = curry$(function(sep, str){
-  return str.split(sep);
-});
-join = curry$(function(sep, xs){
-  return xs.join(sep);
-});
-lines = function(str){
-  if (!str.length) {
-    return [];
-  }
-  return str.split('\n');
-};
-unlines = function(it){
-  return it.join('\n');
-};
-words = function(str){
-  if (!str.length) {
-    return [];
-  }
-  return str.split(/[ ]+/);
-};
-unwords = function(it){
-  return it.join(' ');
-};
-chars = function(it){
-  return it.split('');
-};
-unchars = function(it){
-  return it.join('');
-};
-reverse = function(str){
-  return str.split('').reverse().join('');
-};
-repeat = curry$(function(n, str){
-  var out, res$, i$;
-  res$ = [];
-  for (i$ = 0; i$ < n; ++i$) {
-    res$.push(str);
-  }
-  out = res$;
-  return out.join('');
-});
-module.exports = {
-  split: split,
-  join: join,
-  lines: lines,
-  unlines: unlines,
-  words: words,
-  unwords: unwords,
-  chars: chars,
-  unchars: unchars,
-  reverse: reverse,
-  repeat: repeat
-};
-function curry$(f, bound){
-  var context,
-  _curry = function(args) {
-    return f.length > 1 ? function(){
-      var params = args ? args.concat() : [];
-      context = bound ? context || this : this;
-      return params.push.apply(params, arguments) <
-          f.length && arguments.length ?
-        _curry.call(context, params) : f.apply(context, params);
-    } : f;
-  };
-  return _curry();
-}
-
-},{}],2:[function(require,module,exports){
-(function(){
-  var ref$, reject, empty, any, min, max, each, map, pairsToObj, objectify, error, len, within, notify, failWhenEmpty, doTo, anyTest, relationshipTest;
-  ref$ = require('prelude-ls'), reject = ref$.reject, empty = ref$.empty, any = ref$.any, min = ref$.min, max = ref$.max, each = ref$.each, map = ref$.map, pairsToObj = ref$.pairsToObj;
-  objectify = curry$(function(key, value, list){
-    return compose$([
-      pairsToObj, map(function(it){
-        return [key(it), value(it)];
-      })
-    ])(
-    list);
-  });
-  error = function(msg){
-    return $.Deferred(function(){
-      return this.reject(msg);
-    });
-  };
-  len = function(it){
-    return it.length;
-  };
-  within = curry$(function(upper, lower, actual){
-    return min(upper, max(lower, actual));
-  });
-  notify = function(it){
-    return alert(it);
-  };
-  failWhenEmpty = curry$(function(msg, promise){
-    return promise.then(function(it){
-      if (empty(it)) {
-        return error(msg);
-      } else {
-        return it;
-      }
-    });
-  });
-  doTo = function(f, x){
-    return f(x);
-  };
-  anyTest = curry$(function(tests, x){
-    return any(flip$(doTo)(x), tests);
-  });
-  relationshipTest = curry$(function(link, defVal, x){
-    switch (false) {
-    case !(link && link.label):
-      return link === x;
-    case !link:
-      return link === x.label;
-    default:
-      return defVal;
-    }
-  });
-  module.exports = {
-    toLtrb: toLtrb,
-    toXywh: toXywh,
-    markSubtree: markSubtree,
-    objectify: objectify,
-    error: error,
-    len: len,
-    within: within,
-    notify: notify,
-    failWhenEmpty: failWhenEmpty,
-    doTo: doTo,
-    anyTest: anyTest,
-    relationshipTest: relationshipTest
-  };
-  function markSubtree(root, prop, val){
-    var queue, moar, n;
-    queue = [root];
-    moar = function(arg$){
-      var edges;
-      edges = arg$.edges;
-      return reject(compose$([
-        (function(it){
-          return it === val;
-        }), function(it){
-          return it[prop];
-        }
-      ]))(
-      map(function(it){
-        return it.source;
-      }, edges));
-    };
-    while (n = queue.shift()) {
-      n[prop] = val;
-      each(bind$(queue, 'push'), moar(n));
-    }
-    return root;
-  }
-  function toLtrb(arg$, k){
-    var x, y, height, width;
-    x = arg$.x, y = arg$.y, height = arg$.height, width = arg$.width;
-    k == null && (k = 1);
-    return {
-      l: x - k * width / 2,
-      t: y - k * height / 2,
-      r: x + k * width / 2,
-      b: y + k * height / 2
-    };
-  }
-  function toXywh(arg$){
-    var l, t, r, b;
-    l = arg$.l, t = arg$.t, r = arg$.r, b = arg$.b;
-    return {
-      x: l + (r - l) / 2,
-      y: t + (b - t) / 2,
-      height: b - t,
-      width: r - l
-    };
-  }
-  function compose$(fs){
-    return function(){
-      var i, args = arguments;
-      for (i = fs.length; i > 0; --i) { args = [fs[i-1].apply(this, args)]; }
-      return args[0];
-    };
-  }
-  function curry$(f, bound){
-    var context,
-    _curry = function(args) {
-      return f.length > 1 ? function(){
-        var params = args ? args.concat() : [];
-        context = bound ? context || this : this;
-        return params.push.apply(params, arguments) <
-            f.length && arguments.length ?
-          _curry.call(context, params) : f.apply(context, params);
-      } : f;
-    };
-    return _curry();
-  }
-  function flip$(f){
-    return curry$(function (x, y) { return f(y, x); });
-  }
-  function bind$(obj, key, target){
-    return function(){ return (target || obj)[key].apply(obj, arguments) };
-  }
-}).call(this);
-
-},{"prelude-ls":4}],10:[function(require,module,exports){
-// shim for using process in browser
-
-var process = module.exports = {};
-
-process.nextTick = (function () {
-    var canSetImmediate = typeof window !== 'undefined'
-    && window.setImmediate;
-    var canPost = typeof window !== 'undefined'
-    && window.postMessage && window.addEventListener
-    ;
-
-    if (canSetImmediate) {
-        return function (f) { return window.setImmediate(f) };
-    }
-
-    if (canPost) {
-        var queue = [];
-        window.addEventListener('message', function (ev) {
-            if (ev.source === window && ev.data === 'process-tick') {
-                ev.stopPropagation();
-                if (queue.length > 0) {
-                    var fn = queue.shift();
-                    fn();
-                }
-            }
-        }, true);
-
-        return function nextTick(fn) {
-            queue.push(fn);
-            window.postMessage('process-tick', '*');
-        };
-    }
-
-    return function nextTick(fn) {
-        setTimeout(fn, 0);
-    };
-})();
-
-process.title = 'browser';
-process.browser = true;
-process.env = {};
-process.argv = [];
-
-process.binding = function (name) {
-    throw new Error('process.binding is not supported');
-}
-
-// TODO(shtylman)
-process.cwd = function () { return '/' };
-process.chdir = function (dir) {
-    throw new Error('process.chdir is not supported');
-};
-
-},{}],3:[function(require,module,exports){
-(function(process){(function(){
-  var DEFAULT_GRAPH_STATE, $, dagify, ref$, each, first, objectify, GraphState, getGraphState, OntologyWidget, Widget, slice$ = [].slice;
-  DEFAULT_GRAPH_STATE = {
-    view: 'Dag',
-    smallGraphThreshold: 20,
-    jiggle: null,
-    spline: 'curved',
-    dagDirection: 'LR',
-    maxmarked: 20,
-    tickK: 15,
-    translate: [5, 5],
-    elision: null
-  };
-  $ = jQuery;
-  dagify = require('./dagify');
-  ref$ = require('prelude-ls'), each = ref$.each, first = ref$.first;
-  objectify = require('./util').objectify;
-  GraphState = require('./state');
-  getGraphState = function(config){
-    var initVals, data;
-    initVals = {
-      root: null,
-      animating: 'waiting'
-    };
-    data = import$(import$(import$({}, DEFAULT_GRAPH_STATE), initVals), config.graphState);
-    if (data.query == null) {
-      throw new Error("No query provided.");
-    }
-    return new GraphState(data);
-  };
-  OntologyWidget = (function(superclass){
-    var prototype = extend$((import$(OntologyWidget, superclass).displayName = 'OntologyWidget', OntologyWidget), superclass).prototype, constructor = OntologyWidget;
-    prototype.initialize = function(config, templates){
-      var Service;
-      this.config = config;
-      this.templates = templates;
-      Service = intermine.Service;
-      this.service = new Service(this.config.service);
-      this.model = getGraphState(this.config);
-      return this.interopMines = objectify(function(it){
-        return it.taxonId;
-      }, function(grp){
-        var name;
-        name = grp.name;
-        return (function(it){
-          return it.name = name, it;
-        })(new Service(grp));
-      })(
-      this.config.interop);
-    };
-    prototype.toString = function(){
-      return "[OntologyWidget(" + this.cid + ")]";
-    };
-    prototype.render = function(target){
-      var elem;
-      elem = $(target)[0];
-      this.setElement(elem);
-      if (!this.model.has('dimensions')) {
-        this.model.set({
-          dimensions: {
-            w: elem.offsetWidth,
-            h: elem.offsetHeight || 600
-          }
-        });
-      }
-      this.renderChrome();
-      this.startListening();
-      this.loadData();
-      return this;
-    };
-    OntologyWidget.BINDINGS = {
-      tickK: '.min-ticks',
-      jiggle: '.jiggle',
-      spline: '.spline',
-      view: '.graph-view',
-      dagDirection: '.dag-direction'
-    };
-    prototype.startListening = function(){
-      var key, ref$, sel, this$ = this;
-      for (key in ref$ = constructor.BINDINGS) {
-        sel = ref$[key];
-        fn$();
-      }
-      this.listenTo(this.model, 'change:query', this.loadData);
-      this.listenTo(this.model, 'change:query', bind$(this, 'resetHomologyButtons'));
-      this.listenTo(this.model, 'change:heights', this.fillElisionSelector);
-      this.listenTo(this.model, 'change:root', this.onRootChange);
-      this.listenTo(this.model, 'change:elision', function(m, elision){
-        return this$.$('.elision').val(elision);
-      });
-      this.listenTo(this.model, 'graph:marked graph:reset', this.showOntologyTable);
-      this.listenTo(this.model, 'change:all', bind$(this, 'renderRoots'));
-      this.listenTo(this.model, 'change:all', function(m, graph){
-        return m.set({
-          root: first(graph.getRoots())
-        });
-      });
-      this.listenTo(this.model, 'change:graph change:view change:dagDirection', bind$(this, 'presentGraph'));
-      this.on('controls:changed', function(){
-        return this$.$el.foundation();
-      });
-      return this.on('graph:reset', function(){
-        this$.model.get('all').unmark();
-        return this$.model.trigger('nodes:marked');
-      });
-      function fn$(sel){
-        return this$.listenTo(this$.model, 'change:' + key, function(m, v){
-          return this$.$(sel).val(v);
-        });
-      }
-    };
-    prototype.onRootChange = function(){
-      var root;
-      root = this.model.get('root');
-      console.log("Root is now " + (root != null ? root.id : void 8) + ": " + (root != null ? root.label : void 8));
-      if (root != null) {
-        return this.$('.graph-root').val(root.id);
-      }
-    };
-    prototype.renderRoots = function(){
-      var roots, select, i$, ref$, len$, r;
-      roots = this.model.get('all').getRoots();
-      select = this.$('select.graph-root').empty();
-      for (i$ = 0, len$ = (ref$ = roots.concat({
-        id: null,
-        label: 'All'
-      })).length; i$ < len$; ++i$) {
-        r = ref$[i$];
-        select.append("<option value=\"" + r.id + "\">" + r.label + "</option>");
-      }
-      return this.trigger('controls:changed');
-    };
-    prototype.presentGraph = function(){
-      var view, render, this$ = this;
-      console.log("Presenting graph to the world");
-      view = this.model.get('view');
-      render = dagify['render' + view] || dagify.renderDag;
-      return process.nextTick(function(){
-        return render(this$.model, this$.model.get('graph'));
-      });
-    };
-    prototype.resetHomologyButtons = function(){
-      return this.$('.interop-sources a').removeClass('disabled');
-    };
-    prototype.fillElisionSelector = function(){
-      var elisionSelector, i$, ref$, len$, h, text, level;
-      elisionSelector = this.$('select.elision');
-      elisionSelector.empty();
-      for (i$ = 0, len$ = (ref$ = this.model.get('heights')).length; i$ < len$; ++i$) {
-        h = ref$[i$];
-        text = h === 0
-          ? "Show all terms"
-          : h === 1
-            ? "Show only direct terms, and the root term"
-            : "Show all terms within " + h + " steps of a directly annotated term";
-        elisionSelector.append("<option value=\"" + h + "\">" + text + "</option>");
-      }
-      this.trigger('controls:changed');
-      if (level = this.model.get('elision')) {
-        return elisionSelector.val(level);
-      }
-    };
-    prototype.renderChrome = function(){
-      var key, ref$, sel;
-      this.$el.html(this.templates['widget.html']());
-      for (key in ref$ = Widget.BINDINGS) {
-        sel = ref$[key];
-        this.$(sel).val(this.model.get(key));
-      }
-      this.model.set('svg', first(this.$el.find('svg')));
-      this.setUpOntologyTable();
-      return this.setupInterop();
-    };
-    prototype.setUpOntologyTable = function(){
-      var ref$, w, h, table;
-      ref$ = this.model.get('dimensions'), w = ref$.w, h = ref$.h;
-      table = this.$('.ontology-table').css({
-        top: 0.05 * h,
-        left: w - 50,
-        height: 0.9 * h,
-        width: 0.6 * w
-      });
-      return table.find('table').addClass('tablesorter').tablesorter();
-    };
-    prototype.setupInterop = function(){
-      var $ul, self, toOption;
-      $ul = this.$('.interop-sources');
-      self = this;
-      toOption = function(group){
-        var $li;
-        $li = $("<li><a href=\"#\" class=\"small button\">" + group.name + "</a></li>");
-        return $li.find('a').on('click', function(){
-          var $this;
-          $this = $(this);
-          if ($this.hasClass('disabled')) {
-            return;
-          }
-          $this.addClass('disabled');
-          return self.addDataFrom(group.taxonId);
-        });
-      };
-      return each(compose$([bind$($ul, 'append'), toOption]), this.config.interop);
-    };
-    prototype.addDataFrom = function(taxonId){
-      var service, graph, query, monitor, merging, this$ = this;
-      service = this.interopMines[taxonId];
-      graph = this.model.get('all');
-      query = this.model.get('query');
-      monitor = dagify.progressMonitor(this.$('.homologue-progress'));
-      merging = dagify.fetchAndMergeHomology(monitor, this.service, service, graph, query, taxonId);
-      merging.fail(this.reportError);
-      merging.done(function(merged){
-        return this$.annotate(merged);
-      });
-      merging.done(function(merged){
-        return this$.model.set({
-          all: merged
-        });
-      });
-      return merging.done(function(merged){
-        return this$.model.set({
-          roots: merged.getRoots()
-        });
-      });
-    };
-    prototype.linkRow = function(link){
-      var $row, this$ = this;
-      $row = $(this.templates['ontologyRelationshipRow.html'](link));
-      return $row.on('mouseout', function(){
-        $row.removeClass('highlit');
-        return this$.model.trigger(evt, null);
-      }).on('mouseover', function(){
-        $row.addClass('highlit');
-        return this$.model.trigger(evt, link);
-      });
-    };
-    prototype.termRow = function(term){
-      var evt, $row, this$ = this;
-      evt = 'term:highlight';
-      $row = $(this.templates['ontologyTermRow.html'](term));
-      return $row.on('mouseout', function(){
-        $row.removeClass('highlit');
-        return this$.model.trigger(evt, null);
-      }).on('mouseover', function(){
-        $row.addClass('highlit');
-        return this$.model.trigger(evt, term);
-      });
-    };
-    prototype.showOntologyTable = function(){
-      var ref$, w, h, markedStatements, $statements, $terms, i$, len$, $e, statement, term;
-      ref$ = this.model.get('dimensions'), w = ref$.w, h = ref$.h;
-      markedStatements = this.model.get('all').getMarkedStatements();
-      $statements = this.$('.ontology-table .marked-statements');
-      $terms = this.$('.ontology-table .marked-terms');
-      for (i$ = 0, len$ = (ref$ = [$statements, $terms]).length; i$ < len$; ++i$) {
-        $e = ref$[i$];
-        $e.find('tbody').empty();
-      }
-      for (i$ = 0, len$ = markedStatements.length; i$ < len$; ++i$) {
-        statement = markedStatements[i$];
-        $statements.append(this.linkRow(statement));
-      }
-      for (i$ = 0, len$ = (ref$ = dagify.edgesToNodes(markedStatements)).length; i$ < len$; ++i$) {
-        term = ref$[i$];
-        $terms.append(this.termRow(term));
-      }
-      return this.$('.ontology-table').toggle(markedStatements.length > 0).foundation('section', 'reflow').find('table').trigger('update');
-    };
-    prototype.events = function(){
-      var state, evts, key, ref$, sel, getLeft, this$ = this;
-      state = this.model;
-      evts = {
-        'submit .graph-control': function(e){
-          return e.preventDefault();
-        },
-        'click .graph-control .resizer': 'toggleDisplayOptions',
-        'click .graph-reset': function(){
-          return this$.trigger('graph:reset');
-        }
-      };
-      for (key in ref$ = Widget.BINDINGS) {
-        sel = ref$[key];
-        evts['change ' + sel] = compose$([partialize$.apply(state, [state.set, [key, void 8], [1]]), fn$]);
-      }
-      evts['click .button.symbol'] = function(){
-        var newSymbol;
-        newSymbol = this.$('input.symbol').val();
-        return state.set({
-          query: newSymbol
-        });
-      };
-      evts['change .graph-root'] = function(e){
-        var rootId;
-        rootId = $(e.target).val();
-        return state.set({
-          root: state.get('all').getNode(rootId)
-        });
-      };
-      evts['change .elision'] = function(it){
-        return state.set('elision', parseInt($(it.target).val(), 10));
-      };
-      getLeft = function(isOpen){
-        var w;
-        w = this$.model.get('dimensions').w;
-        return w - 50 - (isOpen
-          ? 0
-          : this$.$('.ontology-table .section-container').outerWidth());
-      };
-      evts['click .slide-control'] = function(){
-        var table, wasOpen, icon;
-        table = this$.$('.ontology-table');
-        wasOpen = table.hasClass('open');
-        table.toggleClass('open').animate({
-          left: getLeft(wasOpen)
-        });
-        return icon = $('.slide-control i').removeClass('icon-chevron-right icon-chevron-left').addClass(wasOpen ? 'icon-chevron-left' : 'icon-chevron-right');
-      };
-      return evts;
-      function fn$(it){
-        return $(it.target).val();
-      }
-    };
-    prototype.toggleDisplayOptions = function(){
-      this.$('.graph-control .resizer').toggleClass('icon-resize-small icon-resize-full');
-      return this.$('.graph-control .hidable').slideToggle();
-    };
-    prototype.loadData = function(){
-      var monitor, building, this$ = this;
-      monitor = dagify.progressMonitor(this.$('.dag .progress'));
-      building = dagify.graphify(monitor, this.service.rows, this.model.get('query'));
-      building.fail(this.reportError);
-      building.done(function(graph){
-        return this$.annotate(graph);
-      });
-      building.done(function(graph){
-        return this$.model.set({
-          all: graph
-        });
-      });
-      return building.done(function(graph){
-        return this$.model.set({
-          roots: graph.getRoots()
-        });
-      });
-    };
-    prototype.annotate = function(graph){
-      var this$ = this;
-      dagify.annotateForCounts(this.service.query, graph.nodes);
-      return dagify.doHeightAnnotation(graph.nodes).done(function(){
-        this$.model.set({
-          heights: graph.getHeights()
-        });
-        return this$.model.trigger('annotated:height');
-      });
-    };
-    prototype.reportError = function(e){
-      return alert("Error: " + e);
-    };
-    function OntologyWidget(){
-      this.loadData = bind$(this, 'loadData', prototype);
-      this.showOntologyTable = bind$(this, 'showOntologyTable', prototype);
-      this.fillElisionSelector = bind$(this, 'fillElisionSelector', prototype);
-      this.onRootChange = bind$(this, 'onRootChange', prototype);
-      OntologyWidget.superclass.apply(this, arguments);
-    }
-    return OntologyWidget;
-  }(Backbone.View));
-  Widget = OntologyWidget;
-  module.exports = OntologyWidget;
-  function import$(obj, src){
-    var own = {}.hasOwnProperty;
-    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
-    return obj;
-  }
-  function bind$(obj, key, target){
-    return function(){ return (target || obj)[key].apply(obj, arguments) };
-  }
-  function extend$(sub, sup){
-    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
-    (sub.prototype = new fun).constructor = sub;
-    if (typeof sup.extended == 'function') sup.extended(sub);
-    return sub;
-  }
-  function compose$(fs){
-    return function(){
-      var i, args = arguments;
-      for (i = fs.length; i > 0; --i) { args = [fs[i-1].apply(this, args)]; }
-      return args[0];
-    };
-  }
-  function partialize$(f, args, where){
-    var context = this;
-    return function(){
-      var params = slice$.call(arguments), i,
-          len = params.length, wlen = where.length,
-          ta = args ? args.concat() : [], tw = where ? where.concat() : [];
-      for(i = 0; i < len; ++i) { ta[tw[0]] = params[i]; tw.shift(); }
-      return len < wlen && len ?
-        partialize$.apply(context, [f, ta, tw]) : f.apply(context, ta);
-    };
-  }
-}).call(this);
-
-})(require("__browserify_process"))
-},{"./dagify":11,"./util":2,"./state":12,"prelude-ls":4,"__browserify_process":10}],11:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 /* See https://github.com/cpettitt/dagre/blob/master/demo/demo-d3.html */
 (function(){
   var util, preludeLs, isType, map, concatMap, fold, sortBy, empty, filter, reject, find, flip, id, sort, mean, sum, sin, cos, values, any, each, join, all, zip, head, unique, minimum, maximum, min, max, ln, reverse, pairsToObj, markSubtree, anyTest, notify, failWhenEmpty, objectify, error, len, within, Graph, ref$, Node, newNode, renderDag, renderForce, GraphState, $, nonCuratedEvidenceCodes, directTerms, getHomologyWhereClause, directHomologyTerms, allGoTerms, flatten, flatRows, allHomologyTerms, wholeGraphQ, countQuery, homologueQuery, fetchNames, rowToNode, getGeneSymbol, graphify, _graphify, fetchAndMergeHomology, markDepth, annotateForHeight, doHeightAnnotation, setInto, cacheFunc, mergeGraphs, edgeToNodes, annotateForCounts, monitorProgress, progressMonitor, edgesToNodes, missingNodeMsg, makeGraph;
@@ -2017,7 +2026,11 @@ process.chdir = function (dir) {
     gettingHomologues = failWhenEmpty("No homologues found")(
     flatRows(bind$(homologyService, 'rows'))(
     homologueQuery(query, source)));
-    gettingDirect = gettingHomologues.then(compose$([rs, directHomologyTerms]));
+    gettingDirect = failWhenEmpty("No annotations found")(
+    function(it){
+      return it.then(compose$([rs, directHomologyTerms]));
+    }(
+    gettingHomologues));
     gettingAll = gettingDirect.then(compose$([rs, allHomologyTerms]));
     gettingNames = $.when(gettingHomologues, gettingAll).then(fetchNames(dataService.name, bind$(dataService, 'rows')));
     gettingEdges = gettingAll.then(compose$([bind$(dataService, 'rows'), wholeGraphQ])).then(map(rowToNode));
@@ -2304,149 +2317,7 @@ process.chdir = function (dir) {
   }
 }).call(this);
 
-},{"./util.js":2,"./graph":13,"./node":14,"./dag":15,"./force":16,"./state":12,"prelude-ls":4}],12:[function(require,module,exports){
-(function(){
-  var ref$, all, any, map, filter, anyTest, isRoot, trimGraphToHeight, GraphState;
-  ref$ = require('prelude-ls'), all = ref$.all, any = ref$.any, map = ref$.map, filter = ref$.filter;
-  anyTest = require('./util').anyTest;
-  isRoot = function(it){
-    return it.isRoot;
-  };
-  trimGraphToHeight = function(arg$, level){
-    var nodes, edges, atOrBelowHeight, acceptable, filtered, i$, ref$, len$, n, elision;
-    nodes = arg$.nodes, edges = arg$.edges;
-    if (!level) {
-      return {
-        nodes: nodes,
-        edges: edges
-      };
-    }
-    atOrBelowHeight = compose$([
-      (function(it){
-        return it <= level;
-      }), function(it){
-        return it.stepsFromLeaf;
-      }
-    ]);
-    acceptable = anyTest([isRoot, atOrBelowHeight]);
-    filtered = {
-      nodes: filter(acceptable, nodes),
-      edges: filter(function(it){
-        return all(acceptable, [it.source, it.target]);
-      }, edges)
-    };
-    for (i$ = 0, len$ = (ref$ = filtered.nodes).length; i$ < len$; ++i$) {
-      n = ref$[i$];
-      if (!n.isRoot && any(compose$([not$, acceptable]), map(fn$, n.edges))) {
-        elision = {
-          source: n,
-          target: n.root,
-          label: 'elision'
-        };
-        filtered.edges.push(elision);
-      }
-    }
-    return filtered;
-    function fn$(it){
-      return it.target;
-    }
-  };
-  GraphState = (function(superclass){
-    var prototype = extend$((import$(GraphState, superclass).displayName = 'GraphState', GraphState), superclass).prototype, constructor = GraphState;
-    prototype.toString = function(){
-      return "[GraphState " + this.cid + "]";
-    };
-    prototype.initialize = function(){
-      console.log("Listening to myself");
-      return this.on('annotated:height change:elision change:root change:all', bind$(this, 'updateGraph'));
-    };
-    prototype.updateGraph = function(){
-      var level, currentRoot, ref$, allNodes, allEdges, nodes, edges, graph;
-      console.log("Updating presented graph");
-      level = this.get('elision');
-      currentRoot = this.get('root');
-      ref$ = this.get('all'), allNodes = ref$.nodes, allEdges = ref$.edges;
-      nodes = (function(){
-        switch (false) {
-        case !currentRoot:
-          return filter(compose$([
-            (function(it){
-              return it === currentRoot;
-            }), function(it){
-              return it.root;
-            }
-          ]), allNodes);
-        default:
-          return allNodes.slice();
-        }
-      }());
-      edges = (function(){
-        switch (false) {
-        case !currentRoot:
-          return filter(compose$([
-            (function(it){
-              return it === currentRoot;
-            }), function(it){
-              return it.root;
-            }, function(it){
-              return it.target;
-            }
-          ]), allEdges);
-        default:
-          return allEdges.slice();
-        }
-      }());
-      graph = (function(){
-        switch (false) {
-        case !(level && any(function(it){
-          return it.stepsFromLeaf;
-        }, nodes)):
-          return trimGraphToHeight({
-            nodes: nodes,
-            edges: edges
-          }, level);
-        default:
-          return {
-            nodes: nodes,
-            edges: edges
-          };
-        }
-      }());
-      return this.set({
-        graph: graph
-      });
-    };
-    function GraphState(){
-      GraphState.superclass.apply(this, arguments);
-    }
-    return GraphState;
-  }(Backbone.Model));
-  module.exports = GraphState;
-  function compose$(fs){
-    return function(){
-      var i, args = arguments;
-      for (i = fs.length; i > 0; --i) { args = [fs[i-1].apply(this, args)]; }
-      return args[0];
-    };
-  }
-  function not$(x){ return !x; }
-  function extend$(sub, sup){
-    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
-    (sub.prototype = new fun).constructor = sub;
-    if (typeof sup.extended == 'function') sup.extended(sub);
-    return sub;
-  }
-  function import$(obj, src){
-    var own = {}.hasOwnProperty;
-    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
-    return obj;
-  }
-  function bind$(obj, key, target){
-    return function(){ return (target || obj)[key].apply(obj, arguments) };
-  }
-}).call(this);
-
-},{"./util":2,"prelude-ls":4}],17:[function(require,module,exports){
+},{"./util.js":2,"./graph":13,"./node":14,"./dag":15,"./force":16,"./state":12,"prelude-ls":4}],17:[function(require,module,exports){
 /*
 Copyright (c) 2012 Chris Pettitt
 
@@ -6579,7 +6450,149 @@ dot_parser = (function(){
 })();
 })();
 
-},{}],13:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
+(function(){
+  var ref$, all, any, map, filter, anyTest, isRoot, trimGraphToHeight, GraphState;
+  ref$ = require('prelude-ls'), all = ref$.all, any = ref$.any, map = ref$.map, filter = ref$.filter;
+  anyTest = require('./util').anyTest;
+  isRoot = function(it){
+    return it.isRoot;
+  };
+  trimGraphToHeight = function(arg$, level){
+    var nodes, edges, atOrBelowHeight, acceptable, filtered, i$, ref$, len$, n, elision;
+    nodes = arg$.nodes, edges = arg$.edges;
+    if (!level) {
+      return {
+        nodes: nodes,
+        edges: edges
+      };
+    }
+    atOrBelowHeight = compose$([
+      (function(it){
+        return it <= level;
+      }), function(it){
+        return it.stepsFromLeaf;
+      }
+    ]);
+    acceptable = anyTest([isRoot, atOrBelowHeight]);
+    filtered = {
+      nodes: filter(acceptable, nodes),
+      edges: filter(function(it){
+        return all(acceptable, [it.source, it.target]);
+      }, edges)
+    };
+    for (i$ = 0, len$ = (ref$ = filtered.nodes).length; i$ < len$; ++i$) {
+      n = ref$[i$];
+      if (!n.isRoot && any(compose$([not$, acceptable]), map(fn$, n.edges))) {
+        elision = {
+          source: n,
+          target: n.root,
+          label: 'elision'
+        };
+        filtered.edges.push(elision);
+      }
+    }
+    return filtered;
+    function fn$(it){
+      return it.target;
+    }
+  };
+  GraphState = (function(superclass){
+    var prototype = extend$((import$(GraphState, superclass).displayName = 'GraphState', GraphState), superclass).prototype, constructor = GraphState;
+    prototype.toString = function(){
+      return "[GraphState " + this.cid + "]";
+    };
+    prototype.initialize = function(){
+      console.log("Listening to myself");
+      return this.on('annotated:height change:elision change:root change:all', bind$(this, 'updateGraph'));
+    };
+    prototype.updateGraph = function(){
+      var level, currentRoot, ref$, allNodes, allEdges, nodes, edges, graph;
+      console.log("Updating presented graph");
+      level = this.get('elision');
+      currentRoot = this.get('root');
+      ref$ = this.get('all'), allNodes = ref$.nodes, allEdges = ref$.edges;
+      nodes = (function(){
+        switch (false) {
+        case !currentRoot:
+          return filter(compose$([
+            (function(it){
+              return it === currentRoot;
+            }), function(it){
+              return it.root;
+            }
+          ]), allNodes);
+        default:
+          return allNodes.slice();
+        }
+      }());
+      edges = (function(){
+        switch (false) {
+        case !currentRoot:
+          return filter(compose$([
+            (function(it){
+              return it === currentRoot;
+            }), function(it){
+              return it.root;
+            }, function(it){
+              return it.target;
+            }
+          ]), allEdges);
+        default:
+          return allEdges.slice();
+        }
+      }());
+      graph = (function(){
+        switch (false) {
+        case !(level && any(function(it){
+          return it.stepsFromLeaf;
+        }, nodes)):
+          return trimGraphToHeight({
+            nodes: nodes,
+            edges: edges
+          }, level);
+        default:
+          return {
+            nodes: nodes,
+            edges: edges
+          };
+        }
+      }());
+      return this.set({
+        graph: graph
+      });
+    };
+    function GraphState(){
+      GraphState.superclass.apply(this, arguments);
+    }
+    return GraphState;
+  }(Backbone.Model));
+  module.exports = GraphState;
+  function compose$(fs){
+    return function(){
+      var i, args = arguments;
+      for (i = fs.length; i > 0; --i) { args = [fs[i-1].apply(this, args)]; }
+      return args[0];
+    };
+  }
+  function not$(x){ return !x; }
+  function extend$(sub, sup){
+    function fun(){} fun.prototype = (sub.superclass = sup).prototype;
+    (sub.prototype = new fun).constructor = sub;
+    if (typeof sup.extended == 'function') sup.extended(sub);
+    return sub;
+  }
+  function import$(obj, src){
+    var own = {}.hasOwnProperty;
+    for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+    return obj;
+  }
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
+}).call(this);
+
+},{"./util":2,"prelude-ls":4}],13:[function(require,module,exports){
 (function(){
   var ref$, unique, filter, sort, map, join, find, each, Graph;
   ref$ = require('prelude-ls'), unique = ref$.unique, filter = ref$.filter, sort = ref$.sort, map = ref$.map, join = ref$.join, find = ref$.find, each = ref$.each;
@@ -7114,13 +7127,13 @@ dot_parser = (function(){
       })(state.get('all'));
       if (wasFiltered) {
         console.log("Resetting");
-        return reset();
+        reset();
       } else {
         markReachable(node);
-        state.trigger('graph:marked');
         filtered = onlyMarked(nodes, edges);
-        return reRender((filtered.reset = reset, filtered));
+        reRender((filtered.reset = reset, filtered));
       }
+      return state.trigger('nodes:marked');
     });
     state.on('relationship:highlight', function(link){
       var scale, test, nodeTest, colFilt;
@@ -8139,7 +8152,7 @@ dot_parser = (function(){
     }
     function updateMarked(){
       var currentAnimation;
-      state.trigger('graph:marked');
+      state.trigger('nodes:marked');
       currentAnimation = state.get('animating');
       state.set('animating', 'running');
       force.start();
