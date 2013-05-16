@@ -196,20 +196,21 @@ class OntologyWidget extends Backbone.View
 
         each (-> it.find(\tbody).empty!), $tables
 
+        ontology-table = @$ \.ontology-table
         if marked-statements.length
 
             for [$el, tmpl, f] in zip-all $tables, templates, filters
                 each $el~append . tmpl, f marked-statements
 
-            @$('.ontology-table')
+            ontology-table
                 .show!
                 .foundation 'section', 'reflow'
                 .find('table').trigger 'update'
 
             @toggleOntologyTable!
         else
-            @$('.ontology-table').hide!
-
+            ontology-table.animate left: (w - 50), ->
+                ontology-table.removeClass \open .hide!
 
     events: ->
       state = @model
@@ -237,12 +238,12 @@ class OntologyWidget extends Backbone.View
 
       return evts
 
-    toggleOntologyTable: ->
+    toggleOntologyTable: (event) ->
         getLeft = (isOpen) ~>
             w = $(\body).outer-width!
             w - 50 - (if isOpen then 0 else @$('.ontology-table .section-container').outerWidth())
         table = @$('.ontology-table')
-        wasOpen = table.hasClass 'open'
+        wasOpen = not event or table.hasClass 'open'
         table.toggleClass('open').animate( left: getLeft(wasOpen) )
         icon = $('.slide-control i')
           .removeClass('icon-chevron-right icon-chevron-left')
