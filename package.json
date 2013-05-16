@@ -3,9 +3,19 @@
   "version": "0.0.1",
   "author": "Alex Kalderimis <alex.kalderimis@gmail.com>",
   "description": "Dagify is an embeddable application for displaying ontology data",
-  "keywords": ["intermine", "bioinformatics", "biology", "ontology", "Gene Ontology"],
+  "keywords": [
+    "intermine",
+    "bioinformatics",
+    "biology",
+    "ontology",
+    "Gene Ontology"
+  ],
   "main": "lib/",
-  "files": ["lib/", "README.md", "LICENSE"],
+  "files": [
+    "lib/",
+    "README.md",
+    "LICENSE"
+  ],
   "bugs": "https://github.com/intermine/dagify/issues",
   "licenses": {
     "type": "LGPL",
@@ -16,5 +26,9 @@
     "uglify-js": "~2.2.5",
     "mocha": "~1.8.2",
     "browserify": "~2.13.2"
+  },
+  "dependencies": {
+    "eco": "~1.1.0-rc-3",
+    "prelude-ls": "~1.0.0"
   }
 }
