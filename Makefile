@@ -62,6 +62,7 @@ loc:
 clean:
 	rm --force --recursive lib
 	rm --force --recursive dist
-	rm *.js
+	rm --force --recursive jstl
+	rm --force *.js
 
 build-browser: dagify.js
