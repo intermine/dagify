@@ -112,7 +112,7 @@ fetch-and-merge-homology = (monitor, homology-service, data-service, graph, quer
         |> flat-rows homology-service~rows
         |> fail-when-empty "No homologues found"
 
-    getting-direct = getting-homologues.then rs . direct-homology-terms
+    getting-direct = getting-homologues |> (.then rs . direct-homology-terms) |> fail-when-empty "No annotations found"
     getting-all = getting-direct.then rs . all-homology-terms
     getting-names = $.when getting-homologues, getting-all
         .then fetch-names data-service.name, data-service~rows
