@@ -25,7 +25,7 @@ $ = jQuery
 # - 'edges:marked', [Edge] -- The list of marked edges
 #
 dagify = require './dagify'
-{each, first} = require \prelude-ls
+{map, id, each, first, zip-all} = require \prelude-ls
 {objectify} = require './util'
 GraphState = require './state'
 
@@ -80,10 +80,10 @@ class OntologyWidget extends Backbone.View
       @listenTo @model, 'change:heights', @fillElisionSelector
       @listenTo @model, 'change:root', @onRootChange
       @listenTo @model, 'change:elision', (m, elision) ~> @$('.elision').val elision
-      @listenTo @model, 'graph:marked graph:reset', @showOntologyTable
       @listenTo @model, 'change:all', @~renderRoots
       @listenTo @model, 'change:all', (m, graph) -> m.set root: first graph.get-roots!
       @listenTo @model, 'change:graph change:view change:dagDirection', @~presentGraph
+      @listenTo @model, 'nodes:marked change:all', @~showOntologyTable
       @on 'controls:changed', ~> @$el.foundation()
       @on 'graph:reset', ~>
         @model.get('all').unmark()
@@ -138,19 +138,20 @@ class OntologyWidget extends Backbone.View
 
     setUpOntologyTable: ->
       {w, h} = @model.get 'dimensions'
-      table = @$('.ontology-table').css {
+      table = @$('.ontology-table').addClass(\open).css {
         top: (0.05 * h)
         left: (w - 50)
         height: (0.9 * h)
         width: (0.6 * w)
       }
+      table.find \.scroll-container .css 'max-height': 0.8 * h
       table.find('table').addClass('tablesorter').tablesorter()
 
-    setupInterop: ->
+    setup-interop: ->
       $ul = @$ '.interop-sources'
       self = @
       toOption = (group) ->
-        $li = $ """<li><a href="#" class="small button">#{ group.name }</a></li>"""
+        $li = $ """<li><a class="small button">#{ group.name }</a></li>"""
         $li.find('a').on 'click', ->
           $this = $ @
           return if $this.hasClass 'disabled'
@@ -172,38 +173,43 @@ class OntologyWidget extends Backbone.View
       merging.done (merged) ~> @model.set all: merged
       merging.done (merged) ~> @model.set roots: merged.getRoots()
 
-    linkRow: (link) ->
+    link-row: (link) ->
       evt = \relationship:highlight
       $row = $ @templates['ontologyRelationshipRow.html'] link
       $row.on('mouseout',  ~> $row.removeClass('highlit'); @model.trigger evt, null)
           .on('mouseover', ~> $row.addClass('highlit'); @model.trigger evt, link)
 
-    termRow: (term) ->
+    term-row: (term) ->
       evt = 'term:highlight'
       $row = $ @templates['ontologyTermRow.html'] term
       $row.on('mouseout',  ~> $row.removeClass('highlit'); @model.trigger evt, null)
           .on('mouseover', ~> $row.addClass('highlit'); @model.trigger evt, term)
 
-    showOntologyTable: ~>
+    showOntologyTable: ->
         {w, h} = @model.get 'dimensions'
-        markedStatements = @model.get('all').getMarkedStatements()
+        marked-statements = @model.get('all').getMarkedStatements()
+        console.log "Got #{ marked-statements.length } marked statements"
 
-        $statements = @$('.ontology-table .marked-statements')
-        $terms =  @$('.ontology-table .marked-terms')
+        $tables   = map @~$, <[.marked-statements .marked-terms]>
+        templates = [ @~link-row, @~term-row ]
+        filters   = [ id, dagify.edgesToNodes ]
 
-        for $e in [$statements, $terms]
-          $e.find('tbody').empty()
+        each (-> it.find(\tbody).empty!), $tables
 
-        for statement in markedStatements
-          $statements.append @linkRow statement
+        if marked-statements.length
 
-        for term in dagify.edgesToNodes(markedStatements)
-          $terms.append @termRow term
+            for [$el, tmpl, f] in zip-all $tables, templates, filters
+                each $el~append . tmpl, f marked-statements
 
-        @$('.ontology-table')
-            .toggle(markedStatements.length > 0)
-            .foundation('section', 'reflow')
-            .find('table').trigger 'update'
+            @$('.ontology-table')
+                .show!
+                .foundation 'section', 'reflow'
+                .find('table').trigger 'update'
+
+            @toggleOntologyTable!
+        else
+            @$('.ontology-table').hide!
+
 
     events: ->
       state = @model
@@ -211,6 +217,8 @@ class OntologyWidget extends Backbone.View
           'submit .graph-control': (e) -> e.preventDefault()
           'click .graph-control .resizer': 'toggleDisplayOptions'
           'click .graph-reset': ~> @trigger 'graph:reset'
+          'click .marked-terms .description .more': ->
+              $(it.target).hide!prev!hide!end!next!show!
 
       for key, sel of Widget.BINDINGS
           evts['change ' + sel] = (-> $(it.target).val!) >> state.set key, _
@@ -225,19 +233,20 @@ class OntologyWidget extends Backbone.View
 
       evts['change .elision'] = -> state.set 'elision', parseInt($(it.target).val(), 10)
 
-      getLeft = (isOpen) ~>
-        {w} = @model.get \dimensions
-        w - 50 - (if isOpen then 0 else @$('.ontology-table .section-container').outerWidth())
+      evts['click .slide-control'] = @~toggleOntologyTable
 
-      evts['click .slide-control'] = ~>
+      return evts
+
+    toggleOntologyTable: ->
+        getLeft = (isOpen) ~>
+            w = $(\body).outer-width!
+            w - 50 - (if isOpen then 0 else @$('.ontology-table .section-container').outerWidth())
         table = @$('.ontology-table')
         wasOpen = table.hasClass 'open'
         table.toggleClass('open').animate( left: getLeft(wasOpen) )
         icon = $('.slide-control i')
           .removeClass('icon-chevron-right icon-chevron-left')
           .addClass(if wasOpen then 'icon-chevron-left' else 'icon-chevron-right')
-
-      return evts
 
     toggleDisplayOptions: ->
       @$ '.graph-control .resizer'
