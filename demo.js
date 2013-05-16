@@ -687,7 +687,7 @@ process.chdir = function (dir) {
       });
     };
     prototype.showOntologyTable = function(){
-      var ref$, w, h, markedStatements, $tables, templates, filters, i$, len$, ref1$, $el, tmpl, f;
+      var ref$, w, h, markedStatements, $tables, templates, filters, ontologyTable, i$, len$, ref1$, $el, tmpl, f;
       ref$ = this.model.get('dimensions'), w = ref$.w, h = ref$.h;
       markedStatements = this.model.get('all').getMarkedStatements();
       console.log("Got " + markedStatements.length + " marked statements");
@@ -697,15 +697,20 @@ process.chdir = function (dir) {
       each(function(it){
         return it.find('tbody').empty();
       }, $tables);
+      ontologyTable = this.$('.ontology-table');
       if (markedStatements.length) {
         for (i$ = 0, len$ = (ref$ = zipAll($tables, templates, filters)).length; i$ < len$; ++i$) {
           ref1$ = ref$[i$], $el = ref1$[0], tmpl = ref1$[1], f = ref1$[2];
           each(compose$([bind$($el, 'append'), tmpl]), f(markedStatements));
         }
-        this.$('.ontology-table').show().foundation('section', 'reflow').find('table').trigger('update');
+        ontologyTable.show().foundation('section', 'reflow').find('table').trigger('update');
         return this.toggleOntologyTable();
       } else {
-        return this.$('.ontology-table').hide();
+        return ontologyTable.animate({
+          left: w - 50
+        }, function(){
+          return ontologyTable.removeClass('open').hide();
+        });
       }
     };
     prototype.events = function(){
@@ -750,7 +755,7 @@ process.chdir = function (dir) {
         return $(it.target).val();
       }
     };
-    prototype.toggleOntologyTable = function(){
+    prototype.toggleOntologyTable = function(event){
       var getLeft, table, wasOpen, icon, this$ = this;
       getLeft = function(isOpen){
         var w;
@@ -760,7 +765,7 @@ process.chdir = function (dir) {
           : this$.$('.ontology-table .section-container').outerWidth());
       };
       table = this.$('.ontology-table');
-      wasOpen = table.hasClass('open');
+      wasOpen = !event || table.hasClass('open');
       table.toggleClass('open').animate({
         left: getLeft(wasOpen)
       });
@@ -847,49 +852,7 @@ process.chdir = function (dir) {
 }).call(this);
 
 })(require("__browserify_process"))
-},{"./dagify":11,"./util":2,"./state":12,"prelude-ls":4,"__browserify_process":10}],5:[function(require,module,exports){
-var curry, flip, fix, apply;
-curry = function(f){
-  return curry$(f);
-};
-flip = curry$(function(f, x, y){
-  return f(y, x);
-});
-fix = function(f){
-  return function(g, x){
-    return function(){
-      return f(g(g)).apply(null, arguments);
-    };
-  }(function(g, x){
-    return function(){
-      return f(g(g)).apply(null, arguments);
-    };
-  });
-};
-apply = curry$(function(f, list){
-  return f.apply(null, list);
-});
-module.exports = {
-  curry: curry,
-  flip: flip,
-  fix: fix,
-  apply: apply
-};
-function curry$(f, bound){
-  var context,
-  _curry = function(args) {
-    return f.length > 1 ? function(){
-      var params = args ? args.concat() : [];
-      context = bound ? context || this : this;
-      return params.push.apply(params, arguments) <
-          f.length && arguments.length ?
-        _curry.call(context, params) : f.apply(context, params);
-    } : f;
-  };
-  return _curry();
-}
-
-},{}],6:[function(require,module,exports){
+},{"./dagify":11,"./util":2,"./state":12,"prelude-ls":4,"__browserify_process":10}],6:[function(require,module,exports){
 var each, map, compact, filter, reject, partition, find, head, first, tail, last, initial, empty, reverse, unique, fold, foldl, fold1, foldl1, foldr, foldr1, unfoldr, concat, concatMap, flatten, difference, intersection, union, countBy, groupBy, andList, orList, any, all, sort, sortWith, sortBy, sum, product, mean, average, maximum, minimum, scan, scanl, scan1, scanl1, scanr, scanr1, slice, take, drop, splitAt, takeWhile, dropWhile, span, breakList, zip, zipWith, zipAll, zipAllWith, slice$ = [].slice;
 each = curry$(function(f, xs){
   var i$, len$, x;
@@ -1496,6 +1459,48 @@ function compose$(fs){
   };
 }
 function not$(x){ return !x; }
+
+},{}],5:[function(require,module,exports){
+var curry, flip, fix, apply;
+curry = function(f){
+  return curry$(f);
+};
+flip = curry$(function(f, x, y){
+  return f(y, x);
+});
+fix = function(f){
+  return function(g, x){
+    return function(){
+      return f(g(g)).apply(null, arguments);
+    };
+  }(function(g, x){
+    return function(){
+      return f(g(g)).apply(null, arguments);
+    };
+  });
+};
+apply = curry$(function(f, list){
+  return f.apply(null, list);
+});
+module.exports = {
+  curry: curry,
+  flip: flip,
+  fix: fix,
+  apply: apply
+};
+function curry$(f, bound){
+  var context,
+  _curry = function(args) {
+    return f.length > 1 ? function(){
+      var params = args ? args.concat() : [];
+      context = bound ? context || this : this;
+      return params.push.apply(params, arguments) <
+          f.length && arguments.length ?
+        _curry.call(context, params) : f.apply(context, params);
+    } : f;
+  };
+  return _curry();
+}
 
 },{}],7:[function(require,module,exports){
 var values, keys, pairsToObj, objToPairs, listsToObj, objToLists, empty, each, map, compact, filter, reject, partition, find;
@@ -6752,7 +6757,7 @@ dot_parser = (function(){
 
 },{"prelude-ls":4}],15:[function(require,module,exports){
 (function(process){(function(){
-  var ref$, termPalette, getMinMaxSize, linkFill, drawRootLabels, relationshipPalette, mvTowards, brighten, BRIGHTEN, colourFilter, termColor, linkStroke, centreAndZoom, drawRelationshipLegend, drawSourceLegend, toXywh, within, toLtrb, relationshipTest, sortBy, unique, id, reverse, reject, each, mean, fold, sort, join, filter, map, any, DAGRE, nodePadding, len, rectColor, toNodeId, doUpdate, invertLayout, separateColliding, deDup, toCombos, getOverlapping, explodify, addLabels, onlyMarked, markReachable, getNodeDragPos, doLine, calculateSpline, translateEdge, renderDag;
+  var ref$, termPalette, getMinMaxSize, linkFill, drawRootLabels, relationshipPalette, mvTowards, brighten, BRIGHTEN, colourFilter, termColor, linkStroke, centreAndZoom, drawRelationshipLegend, drawSourceLegend, toXywh, within, toLtrb, relationshipTest, sortBy, unique, id, reverse, reject, each, mean, fold, sort, join, filter, map, any, DAGRE, nodePadding, len, rectColor, toNodeId, doUpdate, invertLayout, separateColliding, deDup, toCombos, getOverlapping, explodify, addLabels, onlyMarked, markReachable, getNodeDragPos, doLine, calculateSpline, translateEdge, respondToMarking, renderDag;
   ref$ = require('./svg'), termPalette = ref$.termPalette, getMinMaxSize = ref$.getMinMaxSize, linkFill = ref$.linkFill, drawRootLabels = ref$.drawRootLabels, relationshipPalette = ref$.relationshipPalette, mvTowards = ref$.mvTowards, brighten = ref$.brighten, BRIGHTEN = ref$.BRIGHTEN, colourFilter = ref$.colourFilter, termColor = ref$.termColor, linkStroke = ref$.linkStroke, centreAndZoom = ref$.centreAndZoom, drawRelationshipLegend = ref$.drawRelationshipLegend, drawSourceLegend = ref$.drawSourceLegend;
   ref$ = require('./util'), toXywh = ref$.toXywh, within = ref$.within, toLtrb = ref$.toLtrb, relationshipTest = ref$.relationshipTest;
   ref$ = require('prelude-ls'), sortBy = ref$.sortBy, unique = ref$.unique, id = ref$.id, reverse = ref$.reverse, reject = ref$.reject, each = ref$.each, mean = ref$.mean, fold = ref$.fold, sort = ref$.sort, join = ref$.join, filter = ref$.filter, map = ref$.map, any = ref$.any;
@@ -7067,12 +7072,25 @@ dot_parser = (function(){
     }
     return results$;
   });
+  respondToMarking = function(){
+    var filtered;
+    if (this.state.get('view') !== 'Dag') {
+      return;
+    }
+    filtered = onlyMarked(this.nodes, this.edges);
+    if (filtered.nodes.length) {
+      return this.reRender((filtered.reset = this.reset, filtered));
+    } else {
+      return this.reset();
+    }
+  };
   renderDag = function(state, arg$){
     var reset, nodes, edges, svg, dimensions, svgGroup, update, spline, reRender, getDescale, svgBBox, mvEdge, svgEdges, edgesEnter, svgNodes, nodesEnter, markerEnd, rects, dragCp, lineWrap, labels, applyLayout, zoom, fixDagBoxCollisions, cooldown, focusEdges, animateFocus, highlightTargets, getDragX, getDragY, dragHandler, nodeDrag, edgeDrag;
     reset = arg$.reset, nodes = arg$.nodes, edges = arg$.edges;
     svg = d3.select(state.get('svg'));
     svg.selectAll('g').remove();
     dimensions = state.get('dimensions');
+    state.off('nodes:marked', respondToMarking);
     svg.attr('width', dimensions.w).attr('height', dimensions.h).call(drawRelationshipLegend(state, relationshipPalette)).call(drawRootLabels({
       nodes: nodes
     }, dimensions)).call(drawSourceLegend(state, termPalette));
@@ -7095,17 +7113,12 @@ dot_parser = (function(){
     getDescale = function(){
       return 1 / state.get('zoom');
     };
-    state.on('nodes:marked', function(){
-      var filtered;
-      if (state.get('view') !== 'Dag') {
-        return;
-      }
-      filtered = onlyMarked(nodes, edges);
-      if (filtered.nodes.length) {
-        return reRender((filtered.reset = reset, filtered));
-      } else {
-        return reset();
-      }
+    state.on('nodes:marked', respondToMarking, {
+      state: state,
+      reset: reset,
+      reRender: reRender,
+      nodes: nodes,
+      edges: edges
     });
     console.log("Rendering " + len(nodes) + " nodes and " + len(edges) + " edges");
     svgBBox = svg.node().getBBox();
@@ -8099,7 +8112,6 @@ dot_parser = (function(){
         }
       });
     });
-    state.on('nodes:marked', updateMarked);
     state.once('force:ready', function(){
       return centreAndZoom(function(it){
         return it.x;
@@ -8124,7 +8136,7 @@ dot_parser = (function(){
       var queue, moar, count, max, n;
       state.set('animating', 'running');
       if (isRoot(d)) {
-        return toggleSubtree(d);
+        toggleSubtree(d);
       } else {
         queue = [d];
         moar = function(it){
@@ -8143,12 +8155,11 @@ dot_parser = (function(){
           n.marked = true;
           each(bind$(queue, 'push'), moar(n));
         }
-        return updateMarked();
       }
+      return updateMarked();
     }
     function toggleSubtree(root){
-      markSubtree(root, 'muted', !root.muted);
-      return updateMarked();
+      return markSubtree(root, 'muted', !root.muted);
     }
     function updateMarked(){
       var currentAnimation;
