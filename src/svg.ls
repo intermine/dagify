@@ -132,8 +132,8 @@ draw-source-legend = (state, palette, svg) -->
     {nodes} = state.get \graph
     height = 50
     padding = 25
-    width = if dimensions.h > dimensions.w then (dimensions.w - padding * 2) / relationships.length else 180
     sources = unique map (join \-) << (.sources), nodes
+    width = if dimensions.h > dimensions.w then (dimensions.w - padding * 2) / sources.length else 180
 
     [get-x, get-y] = [(flip -> padding + width * it), (-> padding + height)]
 
