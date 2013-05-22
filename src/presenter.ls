@@ -25,7 +25,7 @@ $ = jQuery
 # - 'edges:marked', [Edge] -- The list of marked edges
 #
 dagify = require './dagify'
-{map, id, each, first, zip-all} = require \prelude-ls
+{min, map, id, each, first, zip-all} = require \prelude-ls
 {objectify} = require './util'
 GraphState = require './state'
 
@@ -56,7 +56,7 @@ class OntologyWidget extends Backbone.View
       unless @model.has \dimensions
         @model.set dimensions:
             w: elem.offsetWidth
-            h: (elem.offsetHeight or 600)
+            h: (elem.offsetHeight or min $(\body).height!, elem.offsetWidth)
 
       @renderChrome()
       @startListening()
