@@ -66,6 +66,7 @@ table.tablesorter thead tr .headerSortDown, table.tablesorter thead tr .headerSo
     height: 100%;
 }
 .graph-control {
+    font-size: 12px;
     background: #eee;
     width: 300px;
     position: absolute;
