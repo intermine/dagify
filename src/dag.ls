@@ -1,6 +1,6 @@
 {term-palette, get-min-max-size, link-fill, draw-root-labels, relationship-palette, mv-towards, brighten, BRIGHTEN, colour-filter, term-color, link-stroke, centre-and-zoom, draw-relationship-legend, draw-source-legend} = require './svg'
 {to-xywh, within, to-ltrb, relationship-test} = require './util'
-{sort-by, unique, id, reverse, reject, each, mean, fold, sort, join, filter, map, any} = require \prelude-ls
+{sort-by, unique, id, reverse, reject, each, mean, fold, sort, join, filter, map, any, maximum} = require \prelude-ls
 
 DAGRE = require '../vendor/dagre'
 
@@ -32,9 +32,12 @@ do-update = (group) ->
 
 invert-layout = (dimensions, nodes, edges) ->
     y-stats = get-min-max-size (.dagre.y), nodes
+    max-depth = maximum map (.steps-from-leaf), nodes
+    max-height = maximum map (.dagre.height), nodes
+
     invert-scale = d3.scale.linear!
         .domain [y-stats.min, y-stats.max]
-        .range [dimensions.h * 0.9, 0]
+        .range [max-height * (max-depth * 2.1), 0]
     invert-node = invert-scale . (.dagre.y)
     invert-points = reverse << map ({y}:pt) -> pt <<< y: invert-scale y
     for n in nodes
@@ -90,7 +93,7 @@ add-labels = (selection) ->
             d.width = d.height = 0
 
     label-g.select \text
-        .attr \text-anchor, \left
+        .attr \text-anchor, \middle
         .append \tspan
             .attr \dy, \1em
             .text (.label)
@@ -325,11 +328,13 @@ render-dag = (state, {reset, nodes, edges}) ->
         .attr \x, -> -it.bbox.width
         .attr \y, -> -it.bbox.height / 2
 
+    dag-dir = state.get \dagDirection
+
     dagre.layout!
-        .nodeSep 50
+        .nodeSep 75
         .edgeSep 50
-        .rankSep 75
-        .rankDir state.get(\dagDirection)
+        .rankSep if dag-dir is \LR then 75 else 160
+        .rankDir dag-dir
         .nodes nodes
         .edges edges
         .debugLevel 1
