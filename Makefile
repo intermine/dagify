@@ -1,4 +1,4 @@
-default: all
+default: newdemo.js
 
 SRC = $(shell find src -name "*.ls" -type f | sort)
 LIB = $(SRC:src/%.ls=lib/%.js)
@@ -18,6 +18,8 @@ jstl:
 	mkdir jstl/
 
 lib/%.js: src/%.ls
+	@date
+	@mkdir -p `dirname "$@"`
 	$(LSC) --compile --print "$<" > "$@"
 
 jstl/%: views/%.eco
@@ -31,6 +33,9 @@ dist:
 
 dagify.js: $(LIB)
 	$(BROWSERIFY) -r ./lib/dagify.js:dagify > dagify.js
+
+newdemo.js: $(LIB)
+	$(BROWSERIFY) -e ./lib/newdag.js > newdemo.js
 
 demo.js: $(LIB)
 	$(BROWSERIFY) -e ./lib/demo.js > demo.js
@@ -53,13 +58,17 @@ all: clean lib templates.js dagify.js demo.js ontology-widget.js report-widget
 
 .PHONY: all build-browser dev-install loc clean report-widget
 
-dev-intall: package.json
+dev-install: package.json
 	npm install .
+
+repl: dev-install
+	./node_modules/LiveScript/bin/lsc -d
 
 loc:
 	wc --lines src/*
 
 clean:
+	rm --force package.json
 	rm --force --recursive lib
 	rm --force --recursive dist
 	rm --force --recursive jstl

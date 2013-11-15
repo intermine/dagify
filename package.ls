@@ -25,10 +25,15 @@ licenses:
       url: 'http://www.gnu.org/licenses/lgpl.html'
 
 dev-dependencies:
-    LiveScript: '~1.1.1'
+    'd3': '~3.3.9'
+    'dagre-d3': 'git://github.com/alexkalderimis/dagre-d3.git#2decb32'
+    'zepto-browserify': '1.0.0'
+    'prelude-ls': "~1.0.3"
+    'backbone': '~1.1.0'
+    'LiveScript': '~1.2.0'
     'uglify-js': '~2.2.5'
-    mocha: '~1.8.2'
-    browserify: '~2.13.2'
-    eco: "~1.1.0-rc-3"
-    'prelude-ls': "~1.0.0"
+    'mocha': '~1.8.2'
+    'browserify': '~2.13.2'
+    'eco': "~1.1.0-rc-3"
+    "q": "~0.9.7"
 

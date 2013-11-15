@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="http://cdn.intermine.org/css/foundation/4.0/css/foundation.css">
+        <link rel="stylesheet" href="http://cdn.intermine.org/css/font-awesome/3.0.2/css/font-awesome.css">
+        <link rel="stylesheet" href="style.css">
+
+        <script src="http://cdn.intermine.org/js/jquery/1.9.1/jquery-1.9.1.min.js"></script>
+        <script src="http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.js"></script>
+        <script src="http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.forms.js"></script>
+        <script src="http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.section.js"></script>
+        <script src="http://cdn.intermine.org/js/underscore.js/latest/underscore.js"></script>
+        <script src="http://cdn.intermine.org/js/intermine/imjs/latest/im.js"></script>
+        <script src="newdemo.js" charset="UTF-8"></script>
+    <style>
+    svg {
+        height: 100%;
+        width: 100%;
+    }
+    rect {
+        fill: #fff;
+    }
+
+    .node rect {
+        stroke-width: 1.5px;
+        stroke: #333;
+        fill: #ebebeb;
+        opacity: 0.8;
+    }
+
+    .node.coll > .label > rect {
+        stroke-dasharray: 3.5, 10;
+        fill: none;
+    }
+    .node.attr > .label > rect {
+        fill: #AECDEB;
+    }
+
+    .node.nonebelow > .label > rect {
+        fill: #E79292;
+    }
+    .node.filtered > .label > rect {
+        fill: #BCE6AB;
+    }
+
+    .edge rect {
+        fill: #fff;
+    }
+
+    .edge path {
+        fill: none;
+        stroke: #333;
+        stroke-width: 1.5px;
+    }
+    form.settings {
+        width: 300px;
+        position: absolute;
+        right: 20px;
+        top: 20px;
+    }
+
+    </style>
+    </head>
+    <body style="position: fixed; width: 100%; height: 100%;">
+        <script>$(document).foundation();</script>
+    </body>
+</html>
+
+
