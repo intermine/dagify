@@ -9,23 +9,19 @@ Building useful files:
 Install dev-dependencies:
 
 ```:sh
-
-npm install .
-
+$ npm install
 ```
 
 Build everything
 
 ```:sh
-
-make
-
+$ make
 ```
 
 This produces:
 
 * `dagify.js`, the main library file
-* `ontology-widget.js`, A wrapper around the library in the Report Widget interface
+* `ontology-widget.js`,a wrapper around the library in the Report Widget interface
 * `demo.js`, a demonstration web-app.
 * `dist`, a directory containing all the files needed for use as a report widget.
 
