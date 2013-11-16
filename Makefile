@@ -34,7 +34,7 @@ dist:
 dagify.js: $(LIB)
 	$(BROWSERIFY) -r ./lib/dagify.js:dagify > dagify.js
 
-newdemo.js: $(LIB)
+newdemo.js: dev-install $(LIB)
 	$(BROWSERIFY) -e ./lib/newdag.js > newdemo.js
 
 demo.js: $(LIB)
