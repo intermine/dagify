@@ -3,7 +3,9 @@ Q = require \q
 d3 = require \d3
 dagre-d3 = require \dagre-d3
 Backbone.$ = $
-{split, id, any, each, find, sort-by, last, join, map, is-type, all, first} = require 'prelude-ls'
+{key-code} = require './keycodes'
+
+{pairs-to-obj, split, id, any, each, find, sort-by, last, join, map, is-type, all, first} = require 'prelude-ls'
 
 node-padding = 20px
 
@@ -50,8 +52,10 @@ class Settings extends Backbone.View
         add-company = select~append . (-> "<option>#{ it }</option>") . (.get \name)
         @collection.each add-company
         @$el.append """<select class="layout">
-            <option value="LR">Horizontal</option>
             <option value="BT">Vertical</option>
+            <option value="LR">Horizontal</option>
+            <option value="TB">Inverse Vertical</option>
+            <option value="RL">Inverse Horizontal</option>
         </select>
         """
         @$el.append """<button class="small add-contractors">Add contractors</button>"""
@@ -61,6 +65,10 @@ class Settings extends Backbone.View
             <label>
                 <input type="checkbox" class="align-attrs">
                 Align attributes
+            </label>
+            <label>
+                <input type="checkbox" checked class="show-attrs">
+                Show attributes
             </label>
         """
         @$el.append """
@@ -108,16 +116,22 @@ class Settings extends Backbone.View
             e.prevent-default!
             @$('.find').val null
         'keyup .find': (e) -> @trigger \filter, e.target.value
-        'change .companies': (e) -> @trigger \chosen:company, $(e.target).val!
+        'change .companies': (e) ->
+            @trigger \chosen:company, $(e.target).val!
+            $(window).focus!
         'click .align-attrs': (e) ->
             @trigger \align:attrs, @$('.align-attrs').is \:checked
+        'click .show-attrs': (e) ->
+            @trigger \hide:attrs, not @$('.show-attrs').is \:checked
         'click .classes': (e) ->
             hide = @$('.classes input').filter(':not(:checked)').map( -> $(@).val!).get!
             @classes.each (cls) -> cls.set hidden: (cls.get(\name) in hide)
         'click .paths': (e) ->
             hide = @$('.paths input').filter(':not(:checked)').map( -> $(@).val!).get!
             @paths.each (pth) -> pth.set hidden: (pth.get(\path) in hide)
-        'change .layout': (e) -> @trigger \chosen:layout, $(e.target).val!
+        'change .layout': (e) ->
+            @trigger \chosen:layout, $(e.target).val!
+            $(window).focus!
         'click .add-contractors': (e) ->
             e.prevent-default!
             @trigger \show:contractors, @$('.companies').val!
@@ -133,7 +147,7 @@ class DAG extends Backbone.View
     initialize: ->
         @node-models = new UniqueCollection [], key-fn: (.id)
         @edge-models = new UniqueCollection [], key-fn: (e) -> join \-, map (.id) . (e.), <[ source target ]>
-        @state = new Backbone.Model zoom: 1, rankDir: \LR, hidden-classes: [], hidden-paths: []
+        @state = new Backbone.Model zoom: 1, rankDir: \BT, hidden-classes: [], hidden-paths: [], translate: [0, 0]
         @set-up-listeners!
 
     set-up-listeners: ->
@@ -144,7 +158,7 @@ class DAG extends Backbone.View
             @g.attr \transform, "translate(#{ s.get(\translate) }) scale(#{ current-zoom })"
 
         @state.on \change:rankDir, @~update-graph
-        @state.on 'change:alignAttrs change:hiddenClasses change:hiddenPaths', ~>
+        @state.on 'change:alignAttrs change:hideAttrs change:hiddenClasses change:hiddenPaths', ~>
             @graph = null
             @update-graph!
 
@@ -163,10 +177,23 @@ class DAG extends Backbone.View
             @graph = null
             @update-graph!
 
-    events: ->
-        'term:highlight': (nid) ->
-            scale = @descale!
-            @nodes.attr \opacity, (datum) -> if (not nid) or (datum is nid) then 1 else 0.5
+        state = @state
+        shift = (dx, dy) -> ->
+            [x, y] = state.get \translate
+            state.set translate: [x + dx, y + dy]
+        zoom = (incr) -> -> state.set zoom: state.get(\zoom) + incr
+
+        move = pairs-to-obj [
+            [key-code.UP, shift 0, 100],
+            [key-code.DOWN, shift 0, -100],
+            [key-code.LEFT, shift 100, 0],
+            [key-code.RIGHT, shift -100, 0],
+            [key-code.HOME, -> state.set translate: [0, 0]],
+            [key-code.MINUS, zoom -0.1],
+            [key-code.PLUS, zoom 0.1]
+        ]
+
+        $(window).on \keyup, (e) -> move[e.key-code]?!
 
     set-graph: ({nodes, edges}) ->
         @node-models.reset nodes
@@ -193,14 +220,16 @@ class DAG extends Backbone.View
     edge-vec = (f, edge) --> map f . edge~get, <[source target]>
     edge-classes = edge-vec (.class)
 
-    node-is-hidden = ({hidden-classes, hidden-paths}, unwanted-kids, nm) -->
+    node-is-hidden = ({hide-attrs, hidden-classes, hidden-paths}, unwanted-kids, nm) -->
         node = nm.toJSON!
         cls = node.class
         pth = node.path
-        (nm in unwanted-kids) or (cls in hidden-classes) or (any pth~match, hidden-paths)
+        nt = node.node-type
+        (nm in unwanted-kids) or (hide-attrs and nt is \attr) or (cls in hidden-classes) or (any pth~match, hidden-paths)
 
     get-graph: ->
         return @graph if @graph?
+        start = new Date().get-time!
         self = @
 
         {hidden-classes, hidden-paths} = @state.toJSON!
@@ -241,6 +270,7 @@ class DAG extends Backbone.View
             else
                 delete nm.rank
 
+        console.log "Graph construction took #{ (new Date().get-time! - start) / 1e4ms } secs"
         console.log "Order: #{ g.order! }, size: #{ g.size! }"
         return @graph = g
 
@@ -274,6 +304,14 @@ class DAG extends Backbone.View
     render: ->
         @$el.append """
             <svg>
+                <filter id="dropshadow" height="130%">
+                    <feGaussianBlur in="SourceAlpha" stdDeviation="3"/> <!-- stdDeviation is how much to blur -->
+                    <feOffset dx="2" dy="2" result="offsetblur"/> <!-- how much to offset -->
+                    <feMerge> 
+                        <feMergeNode/> <!-- this contains the offset blurred image -->
+                        <feMergeNode in="SourceGraphic"/> <!-- this contains the element that the filter is applied to -->
+                    </feMerge>
+                </filter>
                 <g transform="translate(20,20)"/>
             </svg>
         """
@@ -289,16 +327,6 @@ class DAG extends Backbone.View
 
         @get-renderer!run @g
 
-        @nodes = @g.selectAll '.node'
-
-        @nodes.on \click, (nid, i) ~>
-            next = @get-graph!~successors
-            path = []
-            succ = next nid
-            while succ.length
-                path = path ++ succ
-                succ = next succ[0]
-
         return this
 
     update-graph: ->
@@ -307,10 +335,13 @@ class DAG extends Backbone.View
         layout = dagre-d3.layout!rank-dir @state.get \rankDir
         graph = @get-graph!
 
+        start = new Date().get-time!
         @renderer.graph graph
             ..layout layout
             ..transition (.duration 500) . (.transition!)
             ..update!
+
+        console.log "Update took #{ (new Date().get-time! - start) / 1000ms } seconds"
 
 base-query =
     from: 'Company'
@@ -328,11 +359,13 @@ base-query =
 
 main = ->
     $(document).foundation!
-    testmodel = new intermine.Service root: "http://localhost/intermine-test"
+    testmodel = new intermine.Service root: "http://localhost:8080/intermine-test"
 
     settings = new Settings
+        ..$el.append-to document.get-element-by-id \controls
 
-    window.dag = new DAG el: $('body')
+    window.dag = new DAG
+        ..set-element document.get-element-by-id \org-chart
         ..on \add:class, settings~add-class
         ..on \add:path, settings.paths~add
         ..render!
@@ -364,7 +397,6 @@ main = ->
             settings
                 ..collection = new Backbone.Collection companies
                 ..render!
-                ..$el.append-to 'body'
             settings.classes.on \change:hidden, ->
                 hidden-classes = settings.classes.filter (.get \hidden) .map (.get \name)
                 dag.state.set {hidden-classes}
@@ -373,6 +405,7 @@ main = ->
                 dag.state.set {hidden-paths}
             settings.on \filter, dag.state.set \filter, _
             settings.on \align:attrs, dag.state.set \alignAttrs, _
+            settings.on \hide:attrs, dag.state.set \hideAttrs, _
             settings.on \chosen:company, load-org-chart
             settings.on \chosen:layout, dag~set-layout
             settings.on \show:contractors, add-relation "Company.contractors.name"

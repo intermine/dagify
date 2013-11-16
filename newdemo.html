@@ -13,6 +13,9 @@
         <script src="http://cdn.intermine.org/js/intermine/imjs/latest/im.js"></script>
         <script src="newdemo.js" charset="UTF-8"></script>
     <style>
+    #org-chart {
+        height: 100%;
+    }
     svg {
         height: 100%;
         width: 100%;
@@ -40,7 +43,8 @@
         fill: #E79292;
     }
     .node.filtered > .label > rect {
-        fill: #BCE6AB;
+        fill: #6EE63D;
+        filter: url(#dropshadow);
     }
 
     .edge rect {
@@ -53,15 +57,27 @@
         stroke-width: 1.5px;
     }
     form.settings {
-        width: 300px;
-        position: absolute;
-        right: 20px;
-        top: 20px;
+        padding: 20px;
+    }
+    #controls {
+        border-left: 1px solid #eee;
     }
 
+    .settings section .content {
+        max-height: 350px;
+        overflow-y: auto;
+    }
+    body, body > .row {
+        position: fixed; width: 100%; height: 100%;
+        max-width: 100%;
+    }
     </style>
     </head>
-    <body style="position: fixed; width: 100%; height: 100%;">
+    <body>
+        <div class="row">
+            <div class="large-9 columns" id="org-chart"></div>
+            <div class="large-3 columns" id="controls"></div>
+        </div>
         <script>$(document).foundation();</script>
     </body>
 </html>
