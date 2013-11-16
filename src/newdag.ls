@@ -152,9 +152,11 @@ class DAG extends Backbone.View
 
     set-up-listeners: ->
         @state.on \change:translate, (s, current-translation) ~>
+            @zoom.translate current-translation
             @g.attr \transform, "translate(#{ current-translation }) scale(#{ s.get \zoom })"
 
         @state.on \change:zoom, (s, current-zoom) ~>
+            @zoom.scale current-zoom
             @g.attr \transform, "translate(#{ s.get(\translate) }) scale(#{ current-zoom })"
 
         @state.on \change:rankDir, @~update-graph
@@ -319,11 +321,11 @@ class DAG extends Backbone.View
         @svg = d3.select 'svg'
         @g = d3.select 'svg g'
 
-        zoom = d3.behavior.zoom!
+        @zoom = d3.behavior.zoom!
             .scale @state.get \zoom
             .on \zoom, ~> @state.set zoom: d3.event.scale, translate: d3.event.translate.slice!
 
-        @svg.call zoom
+        @svg.call @zoom
 
         @get-renderer!run @g
 
