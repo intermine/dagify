@@ -59,15 +59,22 @@ export class DAG extends Backbone.View
             [lx, ly] = [tx * new-zoom + x, ty * new-zoom + y]
             new-translate = [x + cx - lx, y + cy - ly]
 
-            @state.set zoom: new-zoom, translate: new-translate
+            d3.transition!
+              .duration 350ms
+              .tween \zoom, ~>
+                interp-tr = d3.interpolate [x, y], new-translate
+                interp-sc = d3.interpolate scale, new-zoom
+                (time) ~> @state.set do
+                    zoom: interp-sc time
+                    translate: interp-tr time
 
         move = pairs-to-obj [
             [key-code.UP, shift 0, 100],
             [key-code.DOWN, shift 0, -100],
             [key-code.LEFT, shift 100, 0],
             [key-code.RIGHT, shift -100, 0],
-            [key-code.MINUS, zoom -0.1],
-            [key-code.PLUS, zoom 0.1],
+            [key-code.MINUS, zoom -0.2],
+            [key-code.PLUS, zoom 0.2],
             [key-code.HOME, @~fit-to-bounds]
         ]
 
