@@ -1,8 +1,8 @@
 Backbone = require \backbone
 Q = require \q
 Backbone.$ = $
-{Settings} = require './settings'
-{DAG} = require './dag'
+{Settings} = require './settings.ls'
+{DAG} = require './dag.ls'
 
 {apply, pairs-to-obj, split, id, any, each, find, sort-by, last, join, map, is-type, all, first} = require 'prelude-ls'
 

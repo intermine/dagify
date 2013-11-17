@@ -1,8 +1,8 @@
 dagre-d3 = require \dagre-d3
 d3 = require \d3
 Backbone = require \backbone
-{UniqueCollection} = require './unique-collection'
-{key-code} = require './keycodes'
+{UniqueCollection} = require './unique-collection.ls'
+{key-code} = require './keycodes.ls'
 
 {pairs-to-obj, split, id, any, each, find, sort-by, last, join, map, is-type, all, first} = require 'prelude-ls'
 
@@ -43,11 +43,23 @@ export class DAG extends Backbone.View
             @graph = null
             @update-graph!
 
-        state = @state
-        shift = (dx, dy) -> ->
-            [x, y] = state.get \translate
-            state.set translate: [x + dx, y + dy]
-        zoom = (incr) -> -> state.set zoom: state.get(\zoom) + incr
+        shift = (dx, dy, event) ~~>
+            [x, y] = @state.get \translate
+            @state.set translate: [x + dx, y + dy]
+
+        # Translation adjustment gratefully taken from:
+        #   http://bl.ocks.org/linssen/7352810 
+        zoom = (factor, event) ~~>
+            [x, y] = @state.get \translate
+            scale  = @state.get \zoom
+            {cx, cy} = @get-el-dims!
+
+            new-zoom = scale + factor
+            [tx, ty] = [(cx - x) / scale, (cy - y) / scale]
+            [lx, ly] = [tx * new-zoom + x, ty * new-zoom + y]
+            new-translate = [x + cx - lx, y + cy - ly]
+
+            @state.set zoom: new-zoom, translate: new-translate
 
         move = pairs-to-obj [
             [key-code.UP, shift 0, 100],
@@ -61,12 +73,17 @@ export class DAG extends Backbone.View
 
         $(window).on \keyup, (e) -> move[e.key-code]?! unless $(e.target).is \input
 
+
+    get-el-centre: ->
+
     get-el-dims: ->
         padding = 20px
         el-dims = pairs-to-obj [[name, @$el[name]! - padding * 2] for name in <[ height width ]>]
             ..top = padding
             ..bottom = ..height + padding
             ..left = padding
+            ..cx = ..width / 2 + ..left
+            ..cy = ..height / 2 + ..top
             ..right = ..width + padding
 
     get-node-dims: -> first [e.get-bounding-client-rect! for sel in @g for e in sel]
@@ -93,10 +110,10 @@ export class DAG extends Backbone.View
 
         node-bounds = @get-node-dims! # Get the recalculated dimensions, for centering
 
-        [ex, ey] = [el-dims[size] / 2 + el-dims[offset] for [size, offset] in [<[width left]>, <[height top]>]]
         [nx, ny] = [node-bounds[size] / 2 + node-bounds[offset] for [size, offset] in [<[width left]>, <[height top]>]]
-        dx = ex - nx
-        dy = ey - ny
+
+        dx = el-dims.cx - nx
+        dy = el-dims.cy - ny
 
         @state.set translate: [new-x + dx, new-y + dy]
 
@@ -245,11 +262,11 @@ export class DAG extends Backbone.View
         graph = @get-graph!
 
         start = new Date().get-time!
+
         @renderer.graph graph
             ..layout layout
             ..transition (.duration duration) . (.transition!)
             ..update!
 
+        console.debug "Update took #{ (new Date().get-time! - start) / 1000ms } seconds"
         set-timeout @~fit-to-bounds, duration + 1ms
-
-        console.log "Update took #{ (new Date().get-time! - start) / 1000ms } seconds"

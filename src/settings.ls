@@ -1,5 +1,5 @@
 Backbone = require \backbone
-{UniqueCollection} = require './unique-collection'
+{UniqueCollection} = require './unique-collection.ls'
 {split, join} = require 'prelude-ls'
 
 

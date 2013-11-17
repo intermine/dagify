@@ -34,8 +34,13 @@ dist:
 dagify.js: $(LIB)
 	$(BROWSERIFY) -r ./lib/dagify.js:dagify > dagify.js
 
-newdemo.js: dev-install $(LIB)
-	$(BROWSERIFY) -e ./lib/newdag.js > newdemo.js
+newdemo.js: dev-install 
+	$(BROWSERIFY) \
+		--debug \
+		--extension=ls \
+		--transform liveify \
+		--entry ./src/newdag.ls \
+		> newdemo.js
 
 demo.js: $(LIB)
 	$(BROWSERIFY) -e ./lib/demo.js > demo.js
