@@ -11,7 +11,7 @@ export class DAG extends Backbone.View
     initialize: ->
         @node-models = new UniqueCollection [], key-fn: (.id)
         @edge-models = new UniqueCollection [], key-fn: (e) -> join \-, map (.id) . (e.), <[ source target ]>
-        @state = new Backbone.Model zoom: 1, rankDir: \BT, hidden-classes: [], hidden-paths: [], translate: [0, 0]
+        @state = new Backbone.Model zoom: 1, rankDir: \BT, hidden-classes: [], hidden-paths: [], translate: [20, 20]
         @set-up-listeners!
 
     set-up-listeners: ->
@@ -54,12 +54,51 @@ export class DAG extends Backbone.View
             [key-code.DOWN, shift 0, -100],
             [key-code.LEFT, shift 100, 0],
             [key-code.RIGHT, shift -100, 0],
-            [key-code.HOME, -> state.set translate: [0, 0]],
             [key-code.MINUS, zoom -0.1],
-            [key-code.PLUS, zoom 0.1]
+            [key-code.PLUS, zoom 0.1],
+            [key-code.HOME, @~fit-to-bounds]
         ]
 
-        $(window).on \keyup, (e) -> move[e.key-code]?!
+        $(window).on \keyup, (e) -> move[e.key-code]?! unless $(e.target).is \input
+
+    get-el-dims: ->
+        padding = 20px
+        el-dims = pairs-to-obj [[name, @$el[name]! - padding * 2] for name in <[ height width ]>]
+            ..top = padding
+            ..bottom = ..height + padding
+            ..left = padding
+            ..right = ..width + padding
+
+    get-node-dims: -> first [e.get-bounding-client-rect! for sel in @g for e in sel]
+
+    fit-to-bounds: ->
+        {zoom, translate: [x, y]} = @state.toJSON!
+        node-bounds = @get-node-dims!
+        el-dims = @get-el-dims!
+
+        # Get the most egregiously wrong ratio
+        [dw, dh] = [node-bounds[prop] - el-dims[prop] for prop in <[width height]>]
+        ratio =
+            | dw > dh   => el-dims.width / node-bounds.width
+            | otherwise => el-dims.height / node-bounds.height
+
+        new-zoom = zoom * ratio
+        new-x = x * new-zoom
+        new-y = y * new-zoom
+
+        # Apply the scale changes.
+        @state.set zoom: new-zoom, translate: [new-x, new-y]
+
+        ## TODO: Is there a one step way to calculate this??
+
+        node-bounds = @get-node-dims! # Get the recalculated dimensions, for centering
+
+        [ex, ey] = [el-dims[size] / 2 + el-dims[offset] for [size, offset] in [<[width left]>, <[height top]>]]
+        [nx, ny] = [node-bounds[size] / 2 + node-bounds[offset] for [size, offset] in [<[width left]>, <[height top]>]]
+        dx = ex - nx
+        dy = ey - ny
+
+        @state.set translate: [new-x + dx, new-y + dy]
 
     set-graph: ({nodes, edges}) ->
         @node-models.reset nodes
@@ -201,13 +240,16 @@ export class DAG extends Backbone.View
     update-graph: ->
 
         return unless @renderer? # Not rendered for first time yet.
+        duration = 500ms
         layout = dagre-d3.layout!rank-dir @state.get \rankDir
         graph = @get-graph!
 
         start = new Date().get-time!
         @renderer.graph graph
             ..layout layout
-            ..transition (.duration 500) . (.transition!)
+            ..transition (.duration duration) . (.transition!)
             ..update!
+
+        set-timeout @~fit-to-bounds, duration + 1ms
 
         console.log "Update took #{ (new Date().get-time! - start) / 1000ms } seconds"
