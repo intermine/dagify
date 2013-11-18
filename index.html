@@ -11,9 +11,9 @@
         <script src="http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.js"></script>
         <script src="http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.forms.js"></script>
         <script src="http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.section.js"></script>
-        <script src="ontology-dag.js"></script>
+        <script src="ontology-dag.js" charset="UTF-8"></script>
     <style>
-    #org-chart {
+    #chart {
         height: 100%;
     }
     svg {
@@ -36,7 +36,7 @@
         stroke-dasharray: 3.5, 10;
         fill: none;
     }
-    .node.attr > .label > rect {
+    .node.direct > .label > rect {
         fill: #AECDEB;
     }
 
@@ -45,7 +45,6 @@
     }
     .node.filtered > .label > rect {
         fill: #6EE63D;
-        filter: url(#dropshadow);
     }
 
     .edge rect {

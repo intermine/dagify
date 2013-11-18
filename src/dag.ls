@@ -4,15 +4,39 @@ Backbone = require \backbone
 {UniqueCollection} = require './unique-collection.ls'
 {key-code} = require './keycodes.ls'
 
-{pairs-to-obj, split, id, any, each, find, sort-by, last, join, map, is-type, all, first} = require 'prelude-ls'
+{filter, pairs-to-obj, split, id, any, each, find, sort-by, last, join, map, is-type, all, first} = require 'prelude-ls'
+
+class CanBeHidden extends Backbone.Model
+
+    defaults: {hidden: false}
 
 export class DAG extends Backbone.View
 
-    initialize: ->
-        @node-models = new UniqueCollection [], key-fn: (.id)
-        @edge-models = new UniqueCollection [], key-fn: (e) -> join \-, map (.id) . (e.), <[ source target ]>
-        @state = new Backbone.Model zoom: 1, rankDir: \BT, hidden-classes: [], hidden-paths: [], translate: [20, 20]
+    initialize: (opts = {}) ->
+        @node-labels = opts.node-labels ? <[name value label class]>
+        @edge-labels = opts.edge-labels ? <[name value label class]>
+        @is-closable = opts?.is-closable ? (node) -> true
+        @get-node-class = opts?.get-node-class ? (-> null)
+        @get-roots = opts?.get-roots ? (.sinks!)
+        edge-props = opts?.edge-props ? <[source target]>
+        @edge-vec = (f, edge) --> map f . edge~get, edge-props
+        node-key = opts?.node-key ? (.id)
+        edge-key = opts?.edge-key ? (e) -> join \-, map node-key . (e.), edge-props
+        @node-models = new UniqueCollection [], key-fn: node-key
+        @node-models.model = CanBeHidden
+        @edge-models = new UniqueCollection [], key-fn: edge-key
+        @state = new Backbone.Model do
+            zoom: 1
+            rankDir: \BT
+            hidden-classes: []
+            hidden-paths: []
+            translate: [20, 20]
+            duration: 0ms
+            root-filter: (g, x) --> true
+
         @set-up-listeners!
+
+    set-root-filter: (f) -> @state.set \rootFilter, (g, nid) --> f g.node(nid).toJSON!, g
 
     set-up-listeners: ->
         @state.on \change:translate, (s, current-translation) ~>
@@ -26,6 +50,7 @@ export class DAG extends Backbone.View
         @state.on \change:rankDir, @~update-graph
         @state.on 'change:alignAttrs change:hideAttrs change:hiddenClasses change:hiddenPaths', ~>
             @graph = null
+            @state.set \duration, 350ms
             @update-graph!
 
         @state.on 'change:filter', (s, filter-term) ~>
@@ -37,10 +62,15 @@ export class DAG extends Backbone.View
                 return false unless normed? and normed.length
                 return true if ~String(label g.node nid).to-lower-case!index-of normed
 
-        @node-models.on 'add reset', ~> @graph = null
-        @edge-models.on 'add reset', ~> @graph = null
-        @node-models.on 'change:nonebelow', ~>
+        on-graph-change = ~>
             @graph = null
+            @state.set \duration, 350ms
+
+        @node-models.on 'add reset', on-graph-change
+        @edge-models.on 'add reset', on-graph-change
+        @node-models.on 'change:nonebelow change:hidden', ~>
+            @graph = null
+            @state.set \duration, 350ms
             @update-graph!
 
         shift = (dx, dy, event) ~~>
@@ -60,7 +90,7 @@ export class DAG extends Backbone.View
             new-translate = [x + cx - lx, y + cy - ly]
 
             d3.transition!
-              .duration 350ms
+              .duration @state.get \duration
               .tween \zoom, ~>
                 interp-tr = d3.interpolate [x, y], new-translate
                 interp-sc = d3.interpolate scale, new-zoom
@@ -127,6 +157,7 @@ export class DAG extends Backbone.View
     set-graph: ({nodes, edges}) ->
         @node-models.reset nodes
         @edge-models.reset edges
+        @state.set \duration, 0ms
         @update-graph!
 
     add-node: (node) ->
@@ -146,15 +177,12 @@ export class DAG extends Backbone.View
     marker-end: ->
         if @state.get \direction is \LR then 'url(#Triangle)' else 'url(#TriangleDown)'
 
-    edge-vec = (f, edge) --> map f . edge~get, <[source target]>
-    edge-classes = edge-vec (.class)
-
     node-is-hidden = ({hide-attrs, hidden-classes, hidden-paths}, unwanted-kids, nm) -->
         node = nm.toJSON!
         cls = node.class
         pth = node.path
         nt = node.node-type
-        (nm in unwanted-kids) or (hide-attrs and nt is \attr) or (cls in hidden-classes) or (any pth~match, hidden-paths)
+        node.hidden or (nm in unwanted-kids) or (hide-attrs and nt is \attr) or (cls in hidden-classes) or (any pth~match, hidden-paths)
 
     get-graph: ->
         return @graph if @graph?
@@ -170,11 +198,12 @@ export class DAG extends Backbone.View
             @trigger \add:path, {path: node.get \path} if node.has \path
             g.add-node @node-models.key-for(node), node
 
-
         @edge-models.each (edge) ~>
-            ends = edge-vec id, edge
+            ends = @edge-vec id, edge
             [source, target] = map @node-models~key-fn, ends
             g.add-edge @edge-models.key-for(edge), source, target, edge
+
+        @trigger \whole:graph, g
 
         unwanted-kids = [g.node(k) for n in g.nodes!
                                    for k in g.predecessors(n)
@@ -186,8 +215,9 @@ export class DAG extends Backbone.View
 
         is-hidden = node-is-hidden @state.toJSON!, unwanted-kids
 
-        roots = g.sinks!
+        roots = filter (@state.get(\rootFilter) g), @get-roots g
         # Now trim the graph down.
+        g = g.filter-nodes ((nid) ~> @node-filter g.node(nid).toJSON!, nid, g) if @node-filter?
         g = g.filter-nodes (nid) -> not is-hidden g.node(nid)
         # and once more, getting rid of now stranded sections.
         g = g.filter-nodes can-reach-any roots
@@ -208,9 +238,12 @@ export class DAG extends Backbone.View
         layout = dagre-d3.layout!rank-dir @state.get \rankDir
         graph  = @get-graph!
 
+        node-labels = @node-labels
+        edge-labels = @edge-labels
+        labeler = (labels, model) --> (model.get find model~has, labels) ? ''
         @renderer = new dagre-d3.Renderer
-            ..get-node-label (nm) -> nm.get find nm~has, <[name address value label class]>
-            ..get-edge-label (em) -> if em.has(\label) then em.get(\label) else ''
+            ..get-node-label labeler node-labels
+            ..get-edge-label labeler edge-labels
             ..node-join-key (d) -> d
             ..edge-join-key (d) -> d
             ..layout layout
@@ -224,12 +257,12 @@ export class DAG extends Backbone.View
             svg-node.classed \nonebelow, node.get \nonebelow
             svg-node.append \title
                     .text labeler node
-            if nt = node.get \nodeType
-                if nt in <[ref coll]>
-                    svg-node.on \click, ~>
-                        node.set nonebelow: not node.get \nonebelow
-                        svg-node.classed \nonebelow, node.get \nonebelow
-                svg-node.classed nt, true
+            if @is-closable node
+                svg-node.on \click, ~>
+                    node.set nonebelow: not node.get \nonebelow
+                    svg-node.classed \nonebelow, node.get \nonebelow
+            nc = @get-node-class g, nid, node
+            svg-node.classed nc, true if nc?
 
         @renderer
 
@@ -264,7 +297,7 @@ export class DAG extends Backbone.View
     update-graph: ->
 
         return unless @renderer? # Not rendered for first time yet.
-        duration = 500ms
+        duration = @state.get \duration
         layout = dagre-d3.layout!rank-dir @state.get \rankDir
         graph = @get-graph!
 

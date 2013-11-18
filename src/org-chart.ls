@@ -22,6 +22,10 @@ base-query =
 
 $(document).ready main
 
+dag-opts =
+    is-closable: (node) -> node.get(\nodeType) in <[ ref coll ]>
+    get-node-class: (graph, nid, node) -> node.get \nodeType
+
 function main
     $(document).foundation!
     testmodel = new intermine.Service root: "http://localhost:8080/intermine-test"
@@ -29,7 +33,7 @@ function main
     settings = new Settings
         ..$el.append-to document.get-element-by-id \controls
 
-    window.dag = new DAG
+    window.dag = new DAG dag-opts
         ..set-element document.get-element-by-id \org-chart
         ..on \add:class, settings~add-class
         ..on \add:path, settings.paths~add
