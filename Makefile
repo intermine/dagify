@@ -1,4 +1,4 @@
-default: newdemo.js
+default: all
 
 SRC = $(shell find src -name "*.ls" -type f | sort)
 LIB = $(SRC:src/%.ls=lib/%.js)
@@ -34,13 +34,21 @@ dist:
 dagify.js: $(LIB)
 	$(BROWSERIFY) -r ./lib/dagify.js:dagify > dagify.js
 
-newdemo.js: dev-install 
+org-chart.js: dev-install 
 	$(BROWSERIFY) \
 		--debug \
 		--extension=ls \
 		--transform liveify \
-		--entry ./src/newdag.ls \
-		> newdemo.js
+		--entry ./src/org-chart.ls \
+		> org-chart.js
+
+ontology-dag.js: dev-install
+	$(BROWSERIFY) \
+		--debug \
+		--extension=ls \
+		--transform liveify \
+		--entry ./src/ontology-dag.ls \
+		> ontology-dag.js
 
 demo.js: $(LIB)
 	$(BROWSERIFY) -e ./lib/demo.js > demo.js
@@ -59,7 +67,7 @@ report-widget: lib ontology-widget.js dist
 	cp views/*.eco dist/
 	cp style.css dist/
 
-all: clean lib templates.js dagify.js demo.js ontology-widget.js report-widget
+all: clean org-chart.js ontology-dag.js
 
 .PHONY: all build-browser dev-install loc clean report-widget
 
