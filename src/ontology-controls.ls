@@ -117,6 +117,9 @@ export class Controls extends Backbone.View
                 @top-terms.add g.node(n).set root-term: get-root g, n
             for n in g.nodes! when g.node(n).get \direct
                 @direct-terms.add g.node(n).set root-term: get-root g, n
+            available-terms = [g.node(n).get \name for n in g.nodes!]
+            @$('.find').autocomplete source: available-terms
+            $('.ui-autocomplete').add-class \f-dropdown
 
         dag.set-root-filter (ontology-term) ~>
             current-root = @state.get(\currentRoot) ? @roots.first!
