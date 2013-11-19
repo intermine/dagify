@@ -2,6 +2,13 @@ Backbone = require \backbone
 {UniqueCollection} = require './unique-collection.ls'
 {first, intersection} = require 'prelude-ls'
 
+reflow-section = -> $(document).foundation \section, \reflow
+
+class GOTerms extends UniqueCollection
+
+    -> super [], key-fn: (.identifier)
+
+
 export class Controls extends Backbone.View
 
     tagName: \form
@@ -9,10 +16,12 @@ export class Controls extends Backbone.View
 
     initialize: ->
         @state = new Backbone.Model
-        @top-terms = new UniqueCollection [], key-fn: (.identifier)
-        @roots = new UniqueCollection [], key-fn: (.identifier)
+        @top-terms = new GOTerms
+        @roots = new GOTerms
+        @direct-terms = new GOTerms
         @roots.on \add, @~insert-root
         @top-terms.on 'add', @~insert-term
+        @direct-terms.on \add, @~insert-direct-term
 
     render: ->
         @$el.empty!
@@ -35,18 +44,38 @@ export class Controls extends Backbone.View
         """
         @$el.append """
             <div class="section-container accordion terms" data-section=accordion>
+                <section>
+                    <p class="title" data-section-title>
+                      <a href="#">Low Level Terms</a>
+                    </p>
+                    <div class="content low-level-terms" data-section-content>
+                    </div>
+                </section>
             </div>
         """
         @roots.each @~insert-root
         @top-terms.each @~insert-term
+        @direct-terms.each @~insert-direct-term
+        reflow-section!
 
-    reflow-section = -> $(document).foundation \section, \reflow
+    insert-direct-term: (term) ->
+        @$(".low-level-terms").append """
+            <label>
+                <input type="checkbox" value="#{ term.escape \identifier }" 
+                    checked="#{ not term.get \hidden }"/>
+                #{term.escape \name}
+            </label>
+        """
+        reflow-section!
 
     insert-root: (root) ->
+        is-current = root is @state.get \currentRoot
         root-section = $ """
-            <section class="root-term-#{ root.escape \objectId }">
+            <section class="#{ if is-current then \active else ''} root-term root-term-#{ root.escape \objectId }">
                 <p class="title" data-section-title>
-                    <a href="#">#{ root.escape \name }</a>
+                    <a href="#" class="#{ if is-current then \current-root else '' }">
+                        #{ root.escape \name }
+                    </a>
                 </p>
                 <div class="content" data-section-content"></div>
             </section>
@@ -57,7 +86,7 @@ export class Controls extends Backbone.View
 
     insert-term: (term) ~>
         @$(".terms .root-term-#{ term.get \parentTerm } .content").append """
-            <label>
+            <label class="high-level-term">
                 <input type="checkbox" value="#{ term.escape \identifier }" 
                     checked="#{ not term.get \hidden }"/>
                 #{term.escape \name}
@@ -69,7 +98,10 @@ export class Controls extends Backbone.View
         @on \filter, dag.state.set \filter, _
         @on \chosen:layout, dag~set-layout
         @state.on \change:currentRoot, (state, root, {init} = {}) ~>
-            @$(".root-term-#{ root.get \objectId }").trigger \click
+            @$(".root-term .title > a").remove-class \current-root
+            $a = @$ ".root-term-#{ root.get \objectId } .title > a"
+                ..add-class \current-root
+                ..trigger \click
             dag.trigger 'redraw' unless init
 
         dag.on \whole:graph, (g) ~>
@@ -81,6 +113,8 @@ export class Controls extends Backbone.View
             @roots.add roots
             for n in one-removed
                 @top-terms.add g.node(n).set parent-term: first intersection sinks, g.successors(n)
+            for n in g.nodes! when g.node(n).get \direct
+                @direct-terms.add g.node(n)
 
         dag.set-root-filter (ontology-term) ~>
             current-root = @state.get(\currentRoot) ? @roots.first!
@@ -92,9 +126,12 @@ export class Controls extends Backbone.View
             @$('.find').val null
             @trigger \filter, null
         'keyup .find': (e) -> @trigger \filter, e.target.value
-        'click .terms': (e) ->
-            hide = @$('.terms input').filter(':not(:checked)').map( -> $(@).val!).get!
-            @top-terms.each (x) -> x.set hidden: (x.get(\identifier) in hide)
+        'click .low-level-terms': (e) ->
+            hide = @$('.low-level-terms input').filter(':not(:checked)').map( -> $(@).val!).get!
+            @direct-terms.each (x) -> x.set hidden: (x.get(\identifier) in hide)
+        'click .high-level-term': (e) ->
+            hide = @$('.high-level-term input').filter(':not(:checked)').map( -> $(@).val!).get!
+            @top-terms.each (x) -> x.set noneabove: (x.get(\identifier) in hide)
         'change .layout': (e) ->
             @trigger \chosen:layout, $(e.target).val!
             $(e.target).blur!

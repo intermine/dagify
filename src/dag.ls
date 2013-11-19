@@ -73,6 +73,9 @@ export class DAG extends Backbone.View
             @state.set \duration, 350ms
             @update-graph!
 
+        @node-models.on 'change@noneabove', (model, value) ->
+            console.log model.get(\name), value
+
         @on \redraw, ~>
             @graph = null
             @update-graph!
@@ -135,13 +138,14 @@ export class DAG extends Backbone.View
           and inner.top >= outer.top
           and inner.bottom <= outer.bottom
 
-    fit-to-bounds: (stop-if-contained) ->
-        console.log "Fitting to bounds"
-        {zoom, translate: [x, y]} = @state.toJSON!
+    fit-to-bounds: (recurrance = 0) ->
         node-bounds = @get-node-dims!
         el-dims = @get-el-dims!
 
-        return if stop-if-contained is true and el-dims `contains` node-bounds
+        return if recurrance and el-dims `contains` node-bounds
+
+        {zoom, translate: [x, y]} = @state.toJSON!
+        console.debug "Fitting to bounds #{ recurrance }"
 
         # Get the most egregiously wrong ratio
         [dw, dh] = [node-bounds[prop] - el-dims[prop] for prop in <[width height]>]
@@ -168,7 +172,7 @@ export class DAG extends Backbone.View
         new-translation = [new-x + dx, new-y + dy]
         @state.set translate: new-translation
 
-        set-timeout (~> @fit-to-bounds true), 10ms
+        set-timeout (~> @fit-to-bounds recurrance + 1), 10ms
 
     set-graph: ({nodes, edges}) ->
         @node-models.reset nodes
@@ -227,21 +231,20 @@ export class DAG extends Backbone.View
 
         can-reach-any = (roots, nid) -->
             succ = g.successors nid
-            console.log roots, succ
             (nid in roots) or (any (in roots), succ) or (any (can-reach-any roots), succ)
 
         is-hidden = node-is-hidden @state.toJSON!, unwanted-kids
 
         roots = filter (@state.get(\rootFilter) g), @get-roots g
 
-        # Now trim the graph down.
+        # Now trim the graph down, first any user configured filter
         g = g.filter-nodes ((nid) ~> @node-filter g.node(nid).toJSON!, nid, g) if @node-filter?
 
+        # Then standard filter.
         g = g.filter-nodes (nid) -> not is-hidden g.node(nid)
 
         # and once more, getting rid of now stranded sections.
         g = g.filter-nodes can-reach-any roots
-        console.log "after stranded nodes", g.size!
 
         align-attrs = @state.get \alignAttrs
         g.each-node (nid, nm) ->
