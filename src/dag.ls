@@ -3,8 +3,9 @@ d3 = require \d3
 Backbone = require \backbone
 {UniqueCollection} = require './unique-collection.ls'
 {key-code} = require './keycodes.ls'
+{ancestors-of, get-rank} = require './graph-utils.ls'
 
-{filter, pairs-to-obj, split, id, any, each, find, sort-by, last, join, map, is-type, all, first} = require 'prelude-ls'
+{difference, minimum, filter, max, pairs-to-obj, split, id, any, each, find, sort-by, last, join, map, is-type, all, first} = require 'prelude-ls'
 
 class CanBeHidden extends Backbone.Model
 
@@ -68,13 +69,10 @@ export class DAG extends Backbone.View
 
         @node-models.on 'add reset', on-graph-change
         @edge-models.on 'add reset', on-graph-change
-        @node-models.on 'change:nonebelow change:hidden', ~>
+        @node-models.on 'change:nonebelow change:hidden change:noneabove', ~>
             @graph = null
             @state.set \duration, 350ms
             @update-graph!
-
-        @node-models.on 'change:noneabove', (model, value) ->
-            console.log model.get(\name), value
 
         @on \redraw, ~>
             @graph = null
@@ -142,7 +140,7 @@ export class DAG extends Backbone.View
         node-bounds = @get-node-dims!
         el-dims = @get-el-dims!
 
-        return if recurrance and el-dims `contains` node-bounds
+        return if recurrance and el-dims `contains` node-bounds or recurrance > 10
 
         {zoom, translate: [x, y]} = @state.toJSON!
         console.debug "Fitting to bounds #{ recurrance }"
@@ -197,12 +195,17 @@ export class DAG extends Backbone.View
     marker-end: ->
         if @state.get \direction is \LR then 'url(#Triangle)' else 'url(#TriangleDown)'
 
-    node-is-hidden = ({hide-attrs, hidden-classes, hidden-paths}, unwanted-kids, nm) -->
+    node-is-hidden = ({hide-attrs, hidden-classes, hidden-paths}, unwanted-kids, unwanted-parents, nm) -->
         node = nm.toJSON!
         cls = node.class
         pth = node.path
         nt = node.node-type
-        node.hidden or (nm in unwanted-kids) or (hide-attrs and nt is \attr) or (cls in hidden-classes) or (any pth~match, hidden-paths)
+        node.hidden or node.noneabove
+                    or (nm in unwanted-kids)
+                    or (nm in unwanted-parents)
+                    or (hide-attrs and nt is \attr)
+                    or (cls in hidden-classes)
+                    or (any pth~match, hidden-paths)
 
     get-graph: ->
         return @graph if @graph?
@@ -228,12 +231,25 @@ export class DAG extends Backbone.View
         unwanted-kids = [g.node(n) for n in g.nodes!
                                    when g.out-edges(n).length # this is required. No idea why
                                    and all (-> g.node(it).get \nonebelow), g.successors(n)]
+        unwanted-parents = [g.node(p) for n in g.nodes!.filter (-> g.node(it).get(\noneabove))
+                                      for p in ancestors-of g, n
+                                      when g.out-edges(p).length]
+
+        protected-parents = if unwanted-parents.length is 0
+            []
+        else
+            [g.node(p) for n in g.nodes!.filter (-> g.node(it).get \direct and not g.node(it).get \noneabove)
+                       for p in [n] ++ ancestors-of g, n]
+
+        unwanted-parents = difference unwanted-parents, protected-parents
+
+        console.log map (.get \name), unwanted-parents
 
         can-reach-any = (roots, nid) -->
             succ = g.successors nid
             (nid in roots) or (any (in roots), succ) or (any (can-reach-any roots), succ)
 
-        is-hidden = node-is-hidden @state.toJSON!, unwanted-kids
+        is-hidden = node-is-hidden @state.toJSON!, unwanted-kids, unwanted-parents
 
         roots = filter (@state.get(\rootFilter) g), @get-roots g
 
@@ -279,6 +295,10 @@ export class DAG extends Backbone.View
             labeler = @renderer.get-node-label!
             node = @graph.node nid
             svg-node.classed \nonebelow, node.get \nonebelow
+            console.debug "Getting rank"
+            rank = get-rank g, nid
+            console.debug rank
+            svg-node.classed "rank-#{ rank }", true
             title = labeler node
             svg-node.select-all \title
               .data [title]

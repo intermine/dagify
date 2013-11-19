@@ -1,6 +1,7 @@
 Backbone = require \backbone
 {UniqueCollection} = require './unique-collection.ls'
 {first, intersection} = require 'prelude-ls'
+{get-root} = require './graph-utils.ls'
 
 reflow-section = -> $(document).foundation \section, \reflow
 
@@ -44,28 +45,11 @@ export class Controls extends Backbone.View
         """
         @$el.append """
             <div class="section-container accordion terms" data-section=accordion>
-                <section>
-                    <p class="title" data-section-title>
-                      <a href="#">Low Level Terms</a>
-                    </p>
-                    <div class="content low-level-terms" data-section-content>
-                    </div>
-                </section>
             </div>
         """
         @roots.each @~insert-root
         @top-terms.each @~insert-term
         @direct-terms.each @~insert-direct-term
-        reflow-section!
-
-    insert-direct-term: (term) ->
-        @$(".low-level-terms").append """
-            <label>
-                <input type="checkbox" value="#{ term.escape \identifier }" 
-                    checked="#{ not term.get \hidden }"/>
-                #{term.escape \name}
-            </label>
-        """
         reflow-section!
 
     insert-root: (root) ->
@@ -77,7 +61,14 @@ export class Controls extends Backbone.View
                         #{ root.escape \name }
                     </a>
                 </p>
-                <div class="content" data-section-content"></div>
+                <div class="content" data-section-content">
+                  <fieldset class="high-level">
+                    <legend>High Level</legend>
+                  </fieldset>
+                  <fieldset class="low-level">
+                    <legend>Low Level</legend>
+                  </fieldset>
+                </div>
             </section>
         """
         root-section.click ~> @state.set current-root: root
@@ -85,7 +76,7 @@ export class Controls extends Backbone.View
         reflow-section!
 
     insert-term: (term) ~>
-        @$(".terms .root-term-#{ term.get \parentTerm } .content").append """
+        @$(".terms .root-term-#{ term.get \rootTerm } .high-level").append """
             <label class="high-level-term">
                 <input type="checkbox" value="#{ term.escape \identifier }" 
                     checked="#{ not term.get \hidden }"/>
@@ -93,6 +84,17 @@ export class Controls extends Backbone.View
             </label>
         """
         reflow-section!
+
+    insert-direct-term: (term) ->
+        @$(".terms .root-term-#{ term.get \rootTerm } .low-level").append """
+            <label class="low-level-term">
+                <input type="checkbox" value="#{ term.escape \identifier }" 
+                    checked="#{ not term.get \hidden }"/>
+                #{term.escape \name}
+            </label>
+        """
+        reflow-section!
+
 
     wire-to-dag: (dag) ->
         @on \filter, dag.state.set \filter, _
@@ -112,9 +114,9 @@ export class Controls extends Backbone.View
             @state.set({current-root: first roots}, init: true) unless @state.has \currentRoot
             @roots.add roots
             for n in one-removed
-                @top-terms.add g.node(n).set parent-term: first intersection sinks, g.successors(n)
+                @top-terms.add g.node(n).set root-term: get-root g, n
             for n in g.nodes! when g.node(n).get \direct
-                @direct-terms.add g.node(n)
+                @direct-terms.add g.node(n).set root-term: get-root g, n
 
         dag.set-root-filter (ontology-term) ~>
             current-root = @state.get(\currentRoot) ? @roots.first!
@@ -130,7 +132,7 @@ export class Controls extends Backbone.View
             @$('.find').val null
             @trigger \filter, null
         'keyup .find': (e) -> @trigger \filter, e.target.value
-        'click .low-level-terms': set-if-unchecked @direct-terms, '.low-level-terms input', \noneabove
+        'click .low-level-term': set-if-unchecked @direct-terms, '.low-level-term input', \noneabove
         'click .high-level-term': set-if-unchecked @top-terms, '.high-level-term input', \hidden
         'change .layout': (e) ->
             @trigger \chosen:layout, $(e.target).val!
