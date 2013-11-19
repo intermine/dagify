@@ -143,7 +143,6 @@ export class DAG extends Backbone.View
         return if recurrance and el-dims `contains` node-bounds or recurrance > 10
 
         {zoom, translate: [x, y]} = @state.toJSON!
-        console.debug "Fitting to bounds #{ recurrance }"
 
         # Get the most egregiously wrong ratio
         [dw, dh] = [node-bounds[prop] - el-dims[prop] for prop in <[width height]>]
@@ -243,8 +242,6 @@ export class DAG extends Backbone.View
 
         unwanted-parents = difference unwanted-parents, protected-parents
 
-        console.log map (.get \name), unwanted-parents
-
         can-reach-any = (roots, nid) -->
             succ = g.successors nid
             (nid in roots) or (any (in roots), succ) or (any (can-reach-any roots), succ)
@@ -269,8 +266,8 @@ export class DAG extends Backbone.View
             else
                 delete nm.rank
 
-        console.log "Graph construction took #{ (new Date().get-time! - start) / 1e4ms } secs"
-        console.log "Order: #{ g.order! }, size: #{ g.size! }"
+        console.debug "Graph construction took #{ (new Date().get-time! - start) / 1e4ms } secs"
+        console.debug "Order: #{ g.order! }, size: #{ g.size! }"
         return @graph = g
 
     get-renderer: ->
@@ -295,9 +292,7 @@ export class DAG extends Backbone.View
             labeler = @renderer.get-node-label!
             node = @graph.node nid
             svg-node.classed \nonebelow, node.get \nonebelow
-            console.debug "Getting rank"
             rank = get-rank g, nid
-            console.debug rank
             svg-node.classed "rank-#{ rank }", true
             title = labeler node
             svg-node.select-all \title
