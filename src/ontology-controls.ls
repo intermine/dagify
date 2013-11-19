@@ -120,18 +120,18 @@ export class Controls extends Backbone.View
             current-root = @state.get(\currentRoot) ? @roots.first!
             ontology-term.identifier is current-root.get \identifier
 
+    set-if-unchecked = (coll, selector, key, e) -->
+        hide = @$(selector).filter(':not(:checked)').map( -> $(@).val!).get!
+        coll.each (x) -> x.set key, (x.get(\identifier) in hide)
+
     events: ->
         'click .clear-filter': (e) ->
             e.prevent-default!
             @$('.find').val null
             @trigger \filter, null
         'keyup .find': (e) -> @trigger \filter, e.target.value
-        'click .low-level-terms': (e) ->
-            hide = @$('.low-level-terms input').filter(':not(:checked)').map( -> $(@).val!).get!
-            @direct-terms.each (x) -> x.set hidden: (x.get(\identifier) in hide)
-        'click .high-level-term': (e) ->
-            hide = @$('.high-level-term input').filter(':not(:checked)').map( -> $(@).val!).get!
-            @top-terms.each (x) -> x.set noneabove: (x.get(\identifier) in hide)
+        'click .low-level-terms': set-if-unchecked @direct-terms, '.low-level-terms input', \noneabove
+        'click .high-level-term': set-if-unchecked @top-terms, '.high-level-term input', \hidden
         'change .layout': (e) ->
             @trigger \chosen:layout, $(e.target).val!
             $(e.target).blur!

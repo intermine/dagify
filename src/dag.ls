@@ -8,7 +8,7 @@ Backbone = require \backbone
 
 class CanBeHidden extends Backbone.Model
 
-    defaults: {hidden: false}
+    defaults: {hidden: false, nonebelow: false, noneabove: false}
 
 export class DAG extends Backbone.View
 
@@ -73,7 +73,7 @@ export class DAG extends Backbone.View
             @state.set \duration, 350ms
             @update-graph!
 
-        @node-models.on 'change@noneabove', (model, value) ->
+        @node-models.on 'change:noneabove', (model, value) ->
             console.log model.get(\name), value
 
         @on \redraw, ~>
