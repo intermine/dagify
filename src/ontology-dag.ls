@@ -24,7 +24,6 @@ function main
 
 
     window.dag = dag = new DAG dag-opts
-        ..set-root-filter (ontologyTerm) -> ontologyTerm.name is \biological_process
         ..set-element document.get-element-by-id \chart
         ..render!
 
@@ -33,7 +32,7 @@ function main
         ..wire-to-dag dag
         ..render!
 
-    get-graph-for flymine, symbol: \cdc2, 'organism.taxonId': 7227 .then dag~set-graph
+    get-graph-for flymine, symbol: \adh, 'organism.taxonId': 7227 .then dag~set-graph
 
 function get-graph-for service, constraint
     def = Q.defer!

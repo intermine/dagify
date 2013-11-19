@@ -73,6 +73,10 @@ export class DAG extends Backbone.View
             @state.set \duration, 350ms
             @update-graph!
 
+        @on \redraw, ~>
+            @graph = null
+            @update-graph!
+
         shift = (dx, dy, event) ~~>
             [x, y] = @state.get \translate
             @state.set translate: [x + dx, y + dy]
@@ -90,7 +94,7 @@ export class DAG extends Backbone.View
             new-translate = [x + cx - lx, y + cy - ly]
 
             d3.transition!
-              .duration @state.get \duration
+              .duration 750ms # @state.get \duration
               .tween \zoom, ~>
                 interp-tr = d3.interpolate [x, y], new-translate
                 interp-sc = d3.interpolate scale, new-zoom
@@ -125,10 +129,19 @@ export class DAG extends Backbone.View
 
     get-node-dims: -> first [e.get-bounding-client-rect! for sel in @g for e in sel]
 
-    fit-to-bounds: ->
+    contains = (outer, inner) ->
+        inner.left >= outer.left
+          and inner.right <= outer.right
+          and inner.top >= outer.top
+          and inner.bottom <= outer.bottom
+
+    fit-to-bounds: (stop-if-contained) ->
+        console.log "Fitting to bounds"
         {zoom, translate: [x, y]} = @state.toJSON!
         node-bounds = @get-node-dims!
         el-dims = @get-el-dims!
+
+        return if stop-if-contained is true and el-dims `contains` node-bounds
 
         # Get the most egregiously wrong ratio
         [dw, dh] = [node-bounds[prop] - el-dims[prop] for prop in <[width height]>]
@@ -152,12 +165,15 @@ export class DAG extends Backbone.View
         dx = el-dims.cx - nx
         dy = el-dims.cy - ny
 
-        @state.set translate: [new-x + dx, new-y + dy]
+        new-translation = [new-x + dx, new-y + dy]
+        @state.set translate: new-translation
+
+        set-timeout (~> @fit-to-bounds true), 10ms
 
     set-graph: ({nodes, edges}) ->
         @node-models.reset nodes
         @edge-models.reset edges
-        @state.set \duration, 0ms
+        @state.set \duration, 700ms
         @update-graph!
 
     add-node: (node) ->
@@ -205,22 +221,27 @@ export class DAG extends Backbone.View
 
         @trigger \whole:graph, g
 
-        unwanted-kids = [g.node(k) for n in g.nodes!
-                                   for k in g.predecessors(n)
-                                   when g.node(n).get(\nonebelow) and g.out-edges(k).length <= 1]
+        unwanted-kids = [g.node(n) for n in g.nodes!
+                                   when g.out-edges(n).length # this is required. No idea why
+                                   and all (-> g.node(it).get \nonebelow), g.successors(n)]
 
         can-reach-any = (roots, nid) -->
             succ = g.successors nid
+            console.log roots, succ
             (nid in roots) or (any (in roots), succ) or (any (can-reach-any roots), succ)
 
         is-hidden = node-is-hidden @state.toJSON!, unwanted-kids
 
         roots = filter (@state.get(\rootFilter) g), @get-roots g
+
         # Now trim the graph down.
         g = g.filter-nodes ((nid) ~> @node-filter g.node(nid).toJSON!, nid, g) if @node-filter?
+
         g = g.filter-nodes (nid) -> not is-hidden g.node(nid)
+
         # and once more, getting rid of now stranded sections.
         g = g.filter-nodes can-reach-any roots
+        console.log "after stranded nodes", g.size!
 
         align-attrs = @state.get \alignAttrs
         g.each-node (nid, nm) ->
@@ -255,8 +276,12 @@ export class DAG extends Backbone.View
             labeler = @renderer.get-node-label!
             node = @graph.node nid
             svg-node.classed \nonebelow, node.get \nonebelow
-            svg-node.append \title
-                    .text labeler node
+            title = labeler node
+            svg-node.select-all \title
+              .data [title]
+              .enter!
+              .append \title
+              .text (d) -> d
             if @is-closable node
                 svg-node.on \click, ~>
                     node.set nonebelow: not node.get \nonebelow
@@ -309,4 +334,5 @@ export class DAG extends Backbone.View
             ..update!
 
         console.debug "Update took #{ (new Date().get-time! - start) / 1000ms } seconds"
-        set-timeout @~fit-to-bounds, duration + 1ms
+        set-timeout @~fit-to-bounds, duration + 1ms if graph.size!
+
