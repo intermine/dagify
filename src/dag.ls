@@ -40,6 +40,9 @@ export class DAG extends Backbone.View
 
     set-root-filter: (f) -> @state.set \rootFilter, (g, nid) --> f g.node(nid).toJSON!, g
 
+    within = (target, search-space) ->
+        ~String(search-space).to-lower-case!index-of target
+
     set-up-listeners: ->
         @state.on \change:translate, (s, current-translation) ~>
             @zoom.translate current-translation
@@ -60,9 +63,14 @@ export class DAG extends Backbone.View
             label = @renderer.get-node-label!
             normed = filter-term?.to-lower-case!
             g = @graph
-            sel.classed \filtered, (nid, i) ->
-                return false unless normed? and normed.length
-                return true if ~String(label g.node nid).to-lower-case!index-of normed
+            f = (nid) ->
+                | normed?.length => normed `within` label g.node nid
+                | otherwise      => false
+            sel.classed \filtered, f
+            # TODO: zoom into singly matching nodes...
+            # matching = filter f, g.nodes!
+            # if matching.length is 1
+            #    console.log matching
 
         on-graph-change = ~>
             @graph = null
@@ -226,7 +234,7 @@ export class DAG extends Backbone.View
             [source, target] = map @node-models~key-fn, ends
             g.add-edge @edge-models.key-for(edge), source, target, edge
 
-        @trigger \whole:graph, g
+        @trigger \whole:graph, g # Let interested parties know what the full graph looks like.
 
         unwanted-kids = [g.node(n) for n in g.nodes!
                                    when g.out-edges(n).length # this is required. No idea why
