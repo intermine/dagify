@@ -62,11 +62,15 @@ export class Controls extends Backbone.View
                     </a>
                 </p>
                 <div class="content" data-section-content">
-                  <fieldset class="high-level">
-                    <legend>High Level</legend>
+                  <fieldset>
+                    <legend>General Term</legend>
+                    <div class="high-level">
+                    </div>
                   </fieldset>
-                  <fieldset class="low-level">
-                    <legend>Low Level</legend>
+                  <fieldset>
+                    <legend>Specific Term</legend>
+                    <div class="low-level">
+                    </div>
                   </fieldset>
                 </div>
             </section>

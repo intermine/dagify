@@ -12,6 +12,7 @@ FLYMINE = 'http://beta.flymine.org/beta/service'
 $(document).ready main
 
 dag-opts =
+    rank-scale: [0.9, 0.5]
     node-key: (.object-id)
     edge-labels: <[relationship]>
     edge-props: <[childTerm parentTerm]>
@@ -32,7 +33,7 @@ function main
         ..wire-to-dag dag
         ..render!
 
-    get-graph-for flymine, symbol: \adh, 'organism.taxonId': 7227 .then dag~set-graph
+    get-graph-for flymine, symbol: \cdc2, 'organism.taxonId': 7227 .then dag~set-graph
 
 function get-graph-for service, constraint
     def = Q.defer!
@@ -44,9 +45,7 @@ function get-graph-for service, constraint
         nodes <- service.records node-query identifiers
         for n in nodes
             n.direct = n.identifier in direct
-        graph = {nodes, edges}
-        console.log graph
-        def.resolve graph
+        def.resolve {nodes, edges}
     return def.promise
 
 # threading = (promise, ...steps) -> fold ((p, f) -> p.then f), promise, steps

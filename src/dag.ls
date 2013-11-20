@@ -5,7 +5,7 @@ Backbone = require \backbone
 {key-code} = require './keycodes.ls'
 {ancestors-of, get-rank} = require './graph-utils.ls'
 
-{difference, minimum, filter, max, pairs-to-obj, split, id, any, each, find, sort-by, last, join, map, is-type, all, first} = require 'prelude-ls'
+{difference, maximum, minimum, filter, max, pairs-to-obj, split, id, any, each, find, sort-by, last, join, map, is-type, all, first} = require 'prelude-ls'
 
 class CanBeHidden extends Backbone.Model
 
@@ -14,6 +14,7 @@ class CanBeHidden extends Backbone.Model
 export class DAG extends Backbone.View
 
     initialize: (opts = {}) ->
+        @rank-scale = opts.rank-scale ? [1, 1]
         @node-labels = opts.node-labels ? <[name value label class]>
         @edge-labels = opts.edge-labels ? <[name value label class]>
         @is-closable = opts?.is-closable ? (node) -> true
@@ -293,6 +294,10 @@ export class DAG extends Backbone.View
             node = @graph.node nid
             svg-node.classed \nonebelow, node.get \nonebelow
             rank = get-rank g, nid
+
+            svg-node.select-all \.label-bkg
+                    .attr \opacity, @opacity-scale rank
+
             svg-node.classed "rank-#{ rank }", true
             title = labeler node
             svg-node.select-all \title
@@ -343,6 +348,15 @@ export class DAG extends Backbone.View
         duration = @state.get \duration
         layout = dagre-d3.layout!rank-dir @state.get \rankDir
         graph = @get-graph!
+
+        max-rank = maximum map (get-rank graph), graph.nodes!
+
+        @opacity-scale = if not max-rank
+            id
+        else
+            d3.scale.linear!.domain [max-rank, 0]
+                    .range @rank-scale
+                    .interpolate d3.interpolate-number
 
         start = new Date().get-time!
 
