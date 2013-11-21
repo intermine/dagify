@@ -42,7 +42,7 @@ org-chart.js: dev-install
 		--entry ./src/org-chart.ls \
 		> org-chart.js
 
-ontology-dag.js: dev-install
+ontology-dag.js: $(LIB)
 	$(BROWSERIFY) \
 		--debug \
 		--extension=ls \

@@ -3,7 +3,7 @@ Backbone = require \backbone
 {first, intersection} = require 'prelude-ls'
 {get-root} = require './graph-utils.ls'
 
-reflow-section = -> $(document).foundation \section, \reflow
+reflow-section = -> $(document).foundation()
 
 class GOTerms extends UniqueCollection
 
@@ -32,7 +32,7 @@ export class Controls extends Backbone.View
                     <input class="find" type="text" placeholder="filter">
                 </div>
                 <div class="small-3 columns">
-                    <button class="clear-filter postfix">clear</button>
+                    <button class="clear-filter postfix button">clear</button>
                 </div>
             </div>
         """
@@ -44,8 +44,8 @@ export class Controls extends Backbone.View
         </select>
         """
         @$el.append """
-            <div class="section-container accordion terms" data-section=accordion>
-            </div>
+            <dl class="accordion terms" data-section=accordion>
+            </dl>
         """
         @roots.each @~insert-root
         @top-terms.each @~insert-term
@@ -55,13 +55,12 @@ export class Controls extends Backbone.View
     insert-root: (root) ->
         is-current = root is @state.get \currentRoot
         root-section = $ """
-            <section class="#{ if is-current then \active else ''} root-term root-term-#{ root.escape \objectId }">
-                <p class="title" data-section-title>
-                    <a href="#" class="#{ if is-current then \current-root else '' }">
-                        #{ root.escape \name }
-                    </a>
-                </p>
-                <div class="content" data-section-content">
+            <dd class="root-term root-term-#{ root.escape \objectId }">
+                <a href="#"
+                   class="title #{ if is-current then \active else ''}">
+                    #{ root.escape \name }
+                </a>
+                <div class="content #{ if is-current then \active else ''}">
                   <fieldset>
                     <legend>General Term</legend>
                     <div class="high-level">
@@ -73,9 +72,11 @@ export class Controls extends Backbone.View
                     </div>
                   </fieldset>
                 </div>
-            </section>
+            </dd>
         """
-        root-section.click ~> @state.set current-root: root
+        root-section.click ~>
+            root-section.find('.content').toggle-class \active
+            @state.set current-root: root
         @$('.terms').append root-section
         reflow-section!
 
@@ -103,11 +104,16 @@ export class Controls extends Backbone.View
     wire-to-dag: (dag) ->
         @on \filter, dag.state.set \filter, _
         @on \chosen:layout, dag~set-layout
-        @state.on \change:currentRoot, (state, root, {init} = {}) ~>
-            @$(".root-term .title > a").remove-class \current-root
-            $a = @$ ".root-term-#{ root.get \objectId } .title > a"
-                ..add-class \current-root
-                ..trigger \click
+        @state.on \change:currentRoot, (state, selected, {init} = {}) ~>
+            # Handle this manually. Foundation 5 is not-dynamic :(
+            obj-id = selected.get \objectId
+            for non-selected in @roots.filter (isnt selected)
+                cls = '.root-term-' + non-selected.get \objectId
+                @$("#{ cls } .title").remove-class \active
+                @$("#{ cls } .content").remove-class \active
+            @$(".root-term-#{ obj-id } .content").add-class \active
+            @$(".root-term-#{ obj-id } .title").add-class \active
+
             dag.trigger 'redraw' unless init
 
         dag.on \whole:graph, (g) ~>

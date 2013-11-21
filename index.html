@@ -1,17 +1,16 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <link rel="stylesheet" href="http://cdn.intermine.org/css/foundation/4.0/css/foundation.css">
+        <meta name="viewport" content="initial-scale=1.0" />
+        <link rel="stylesheet" href="http://cdn.intermine.org/css/foundation/5.0/css/foundation.css">
         <link rel="stylesheet" href="http://cdn.intermine.org/css/font-awesome/3.0.2/css/font-awesome.css">
         <link rel="stylesheet" href="style.css">
 
+        <script src="http://cdn.intermine.org/css/foundation/5.0/js/modernizr.js"></script>
         <script src="http://cdn.intermine.org/js/jquery/1.9.1/jquery-1.9.1.min.js"></script>
         <script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
         <script src="http://cdn.intermine.org/js/underscore.js/latest/underscore.js"></script>
         <script src="http://cdn.intermine.org/js/intermine/imjs/latest/im.js"></script>
-        <script src="http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.js"></script>
-        <script src="http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.forms.js"></script>
-        <script src="http://cdn.intermine.org/css/foundation/4.0/js/foundation/foundation.section.js"></script>
         <script src="ontology-dag.js" charset="UTF-8"></script>
     <style>
     .ui-helper-hidden-accessible{display:none}
@@ -117,6 +116,10 @@
         overflow-y: auto;
         max-height: 250px;
     }
+    .controls .root-term .title.active {
+        background: #008CBA;
+        color: #ffffff;
+    }
     </style>
     </head>
     <body>
@@ -124,7 +127,8 @@
             <div class="large-9 columns" id="chart"></div>
             <div class="large-3 columns" id="controls"></div>
         </div>
-        <script>$(document).foundation();</script>
+        <script src="http://cdn.intermine.org/css/foundation/5.0/js/foundation/foundation.js"></script>
+        <script>$(document).ready(function () { $(document).foundation(); });</script>
     </body>
 </html>
 
