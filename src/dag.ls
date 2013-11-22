@@ -11,6 +11,8 @@ class CanBeHidden extends Backbone.Model
 
     defaults: {hidden: false, nonebelow: false, noneabove: false}
 
+    toggle: (prop) -> @set prop, not @get prop
+
 export class DAG extends Backbone.View
 
     initialize: (opts = {}) ->
@@ -78,7 +80,8 @@ export class DAG extends Backbone.View
 
         @node-models.on 'add reset', on-graph-change
         @edge-models.on 'add reset', on-graph-change
-        @node-models.on 'change:nonebelow change:hidden change:noneabove', ~>
+        @node-models.on 'change:nonebelow change:hidden change:noneabove', (m, v, {batch} = {}) ~>
+            return if batch
             @graph = null
             @state.set \duration, 350ms
             @update-graph!

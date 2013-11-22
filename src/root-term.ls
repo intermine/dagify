@@ -1,4 +1,5 @@
 Backbone = require \backbone
+{TermControl} = require './term-toggle.ls'
 
 export class RootTerm extends Backbone.View
 
@@ -6,8 +7,10 @@ export class RootTerm extends Backbone.View
     class-name: \root-term
 
     initialize: ({@high-level-terms, @low-level-terms}) ->
+        @state = new Backbone.Model selection: \high
         @high-level-terms.on \add, @~append-high-level-term
         @low-level-terms.on \add, @~append-low-level-term
+        @state.on \change:selection, @~tab-select
         @on \currentRoot, (root) ~>
             if root is @model
                 @$('.title').add-class \active
@@ -32,6 +35,7 @@ export class RootTerm extends Backbone.View
                   <div class="active content high-level"></div>
                   <div class="content low-level"></div>
                 </div>
+                <button class="button tiny invert">Invert Selection</button>
             </div>
         """
         @high-level-terms.each @~append-high-level-term
@@ -40,39 +44,42 @@ export class RootTerm extends Backbone.View
 
     append-high-level-term: (term) ->
         return unless term.get(\rootTerm) is @model
-        @$('.content.high-level').append @term-control \high-level-term, term, \descendents, "child terms"
+        @$('.content.high-level').append @term-control \high-level-term, term, \descendents, "child terms", \hidden
 
     append-low-level-term: (term) ->
         return unless term.get(\rootTerm) is @model
-        @$('.content.low-level').append @term-control \low-level-term, term, \ancestors, "parent terms"
+        @$('.content.low-level').append @term-control \low-level-term, term, \ancestors, "parent terms", \noneabove
 
-    term-control: (cls, term, prop, desc) -> """
-        <label class="#{ cls }">
-            <input type="checkbox" value="#{ term.escape \identifier }" 
-                checked="#{ not term.get \hidden }"/>
-            #{term.escape \name}
-            <span class="detail">#{term.escape prop} #{ desc }</span>
-        </label>
-    """
+    term-control: (cls, term, prop, desc, toggle) ->
+        (.render!.el) new TermControl {model: term, cls, prop, desc, toggle}
 
-    # TODO: replace with sub views, one for each term - avoid iteration...
-    set-if-unchecked = (coll, selector, key, e) -->
-        e.stop-propagation!
-        hide = @$(selector).filter(':not(:checked)').map( -> $(@).val!).get!
-        coll.each (x) -> x.set key, (x.get(\identifier) in hide)
-
-    tab-select = (cls, e) -->
-        e.stop-propagation!
+    tab-select: (state, cls) ->
         @$('.tabs dd').remove-class \active
-        @$(".tabs .#{ cls }").add-class \active
+        @$(".tabs .#{ cls }-level").add-class \active
         @$('.tabs-content .content').remove-class \active
-        @$(".tabs-content .content.#{ cls }").add-class \active
+        @$(".tabs-content .content.#{ cls }-level").add-class \active
+
+    invert-selection = (e) ->
+        e.stop-propagation!
+        m = @model
+        sel = @state.get \selection
+        coll = switch sel
+            | \high     => @high-level-terms
+            | \low      => @low-level-terms
+            | otherwise => throw new Error "illegal selection"
+        prop = switch sel
+            | \high     => \hidden
+            | \low      => \noneabove
+            | otherwise => throw new Error "illegal selection"
+        # Flag update as batched, so they don't all go through.
+        [t] = for term in coll.filter (.get(\rootTerm) is m)
+            term.set prop, (not term.get prop), batch: true
+        t?.trigger "change:#{ prop }", t, t.get prop # Send the update bat-signal
 
     events: ->
-        'click .tabs .high-level': tab-select \high-level
-        'click .tabs .low-level': tab-select \low-level
-        'click .low-level-term': set-if-unchecked @low-level-terms, '.low-level-term input', \noneabove
-        'click .high-level-term': set-if-unchecked @high-level-terms, '.high-level-term input', \hidden
+        'click .invert': invert-selection
+        'click .tabs .high-level': -> @state.set selection: \high
+        'click .tabs .low-level': -> @state.set selection: \low
         'click .title': (e) ->
             e.stop-propagation!
             @$('.sub-terms').toggle-class \active # Will be overridden if change
