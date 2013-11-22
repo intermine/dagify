@@ -55,6 +55,7 @@ export class RootTerm extends Backbone.View
         </label>
     """
 
+    # TODO: replace with sub views, one for each term - avoid iteration...
     set-if-unchecked = (coll, selector, key, e) -->
         e.stop-propagation!
         hide = @$(selector).filter(':not(:checked)').map( -> $(@).val!).get!

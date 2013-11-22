@@ -13,7 +13,7 @@ $(document).ready main
 
 dag-opts =
     rank-scale: [0.9, 0.5]
-    node-key: (.object-id)
+    node-key: (.identifier)
     edge-labels: <[relationship]>
     edge-props: <[childTerm parentTerm]>
     is-closable: (node) -> not node.get \direct

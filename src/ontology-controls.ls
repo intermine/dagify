@@ -56,7 +56,7 @@ export class Controls extends Backbone.View
         @roots.each @~insert-root
 
     insert-root: (root) ->
-        id = root.get \objectId
+        id = root.get \identifier
         @root-views[id] = view = new RootTerm model: root, high-level-terms: @top-terms, low-level-terms: @direct-terms
 
         view.render!
@@ -93,7 +93,7 @@ export class Controls extends Backbone.View
             for id, view of @root-views
                 view.trigger \currentRoot, selected
 
-            @$('.find').autocomplete source: @term-names[selected.get \objectId]
+            @$('.find').autocomplete source: @term-names[selected.get \identifier]
 
             dag.trigger 'redraw' unless init
 
