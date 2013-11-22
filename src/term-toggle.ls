@@ -15,8 +15,8 @@ export class TermControl extends Backbone.View
             ..html """
             <input type="checkbox" value="#{ @model.escape \identifier }" 
                 checked="#{ not @model.get toggle }"/>
-            #{@model.escape \name}
             <span class="detail">#{@model.escape prop} #{ desc }</span>
+            <span class="name">#{@model.escape \name}</span>
         """
         return this
 
