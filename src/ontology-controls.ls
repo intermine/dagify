@@ -1,6 +1,6 @@
 Backbone = require \backbone
 {GOTerms} = require './go-terms.ls'
-{unique, map, pairs-to-obj, fold, first, intersection} = require 'prelude-ls'
+{Obj, any, unique, map, pairs-to-obj, fold, first, intersection} = require 'prelude-ls'
 {get-root} = require './graph-utils.ls'
 {RootTerm} = require './root-term.ls'
 
@@ -30,6 +30,9 @@ export class Controls extends Backbone.View
         @direct-terms = new GOTerms
         @roots.on \add, @~insert-root
 
+    show-term-suggestion = (ul, term) ->
+        (.append-to ul) $ "<li><a>#{ term.escape \name } (#{ term.escape \identifier })</a></li>"
+
     render: ->
         @$el.empty!
         @$el.append """
@@ -55,6 +58,25 @@ export class Controls extends Backbone.View
         """
         @roots.each @~insert-root
 
+        source = @~suggest-terms
+        select = @~select-term
+        ac = @$ '.find'
+                |> (.autocomplete {source, select, focus: select})
+                |> (.data \ui-autocomplete)
+        ac._render-item = show-term-suggestion
+
+    select-term: (e, {item}) ->
+        e.prevent-default!
+        term = item.get \identifier
+        @$ '.find' .val term
+        @trigger \filter, term
+
+    suggest-terms: ({term}, done) ->
+        current-id = @state.get(\currentRoot).get \identifier
+        terms = @terms-for[current-id] ? []
+        re = new RegExp $.ui.autocomplete.escape-regex term
+        done [t for t in terms when any re~test, map t~get, <[identifier name]>]
+
     insert-root: (root) ->
         id = root.get \identifier
         @root-views[id] = view = new RootTerm model: root, high-level-terms: @top-terms, low-level-terms: @direct-terms
@@ -76,14 +98,12 @@ export class Controls extends Backbone.View
         for n in g.nodes! when g.node(n).get \direct
             @direct-terms.add g.node(n).set ancestors: (count-anc g, n), root-term: root-node g, n
 
-        @term-names = pairs-to-obj [[r-id, [g.node(n).get \name for n in ns]] for r-id, ns of _.group-by g.nodes!, get-root g]
-
-        console.log @term-names
+        @terms-for = Obj.map (map g~node), _.group-by g.nodes!, get-root g
 
         $('.ui-autocomplete').add-class \f-dropdown
 
     root-views: {}
-    term-names: {}
+    terms-for: {}
 
     wire-to-dag: (dag) ->
         @on \filter, dag.state.set \filter, _
@@ -92,8 +112,6 @@ export class Controls extends Backbone.View
             # Handle this manually. Foundation 5 is not-dynamic :(
             for id, view of @root-views
                 view.trigger \currentRoot, selected
-
-            @$('.find').autocomplete source: @term-names[selected.get \identifier]
 
             dag.trigger 'redraw' unless init
 

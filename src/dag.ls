@@ -64,7 +64,7 @@ export class DAG extends Backbone.View
             normed = filter-term?.to-lower-case!
             g = @graph
             f = (nid) ->
-                | normed?.length => normed `within` label g.node nid
+                | normed?.length => filter-term is nid or normed `within` label g.node nid
                 | otherwise      => false
             sel.classed \filtered, f
             # TODO: zoom into singly matching nodes...
