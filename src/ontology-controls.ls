@@ -119,7 +119,6 @@ export class Controls extends Backbone.View
 
         dag.set-root-filter (ontology-term) ~>
             current-root = @state.get(\currentRoot) ? @roots.first!
-            console.log ontology-term.identifier, current-root.get \identifier
             ontology-term.identifier is current-root.get \identifier
 
     events: ->
