@@ -1,10 +1,22 @@
 Backbone = require \backbone
 {GOTerms} = require './go-terms.ls'
-{pairs-to-obj, first, intersection} = require 'prelude-ls'
+{unique, map, pairs-to-obj, fold, first, intersection} = require 'prelude-ls'
 {get-root} = require './graph-utils.ls'
 {RootTerm} = require './root-term.ls'
 
 root-node = (g, n) -> g.node get-root g, n
+
+flat-graph-map = (f, g, n) -->
+    for-node = f g, n
+    unique fold (++), for-node, map (flat-graph-map f, g), for-node
+
+descendents-in = flat-graph-map (g, n) -> g.predecessors n
+
+ancestors-in = flat-graph-map (g, n) -> g.successors n
+
+count-desc = (.length) . descendents-in
+
+count-anc = (.length) . ancestors-in
 
 export class Controls extends Backbone.View
 
@@ -60,9 +72,9 @@ export class Controls extends Backbone.View
         @state.set({current-root: first roots}, init: true) unless @state.has \currentRoot
         @roots.add roots
         for n in one-removed
-            @top-terms.add g.node(n).set root-term: root-node g, n
+            @top-terms.add g.node(n).set descendents: (count-desc g, n), root-term: root-node g, n
         for n in g.nodes! when g.node(n).get \direct
-            @direct-terms.add g.node(n).set root-term: root-node g, n
+            @direct-terms.add g.node(n).set ancestors: (count-anc g, n), root-term: root-node g, n
 
         @term-names = pairs-to-obj [[r-id, [g.node(n).get \name for n in ns]] for r-id, ns of _.group-by g.nodes!, get-root g]
 

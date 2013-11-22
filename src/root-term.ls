@@ -40,17 +40,18 @@ export class RootTerm extends Backbone.View
 
     append-high-level-term: (term) ->
         return unless term.get(\rootTerm) is @model
-        @$('.content.high-level').append @term-control \high-level-term, term
+        @$('.content.high-level').append @term-control \high-level-term, term, \descendents, "child terms"
 
     append-low-level-term: (term) ->
         return unless term.get(\rootTerm) is @model
-        @$('.content.low-level').append @term-control \low-level-term, term
+        @$('.content.low-level').append @term-control \low-level-term, term, \ancestors, "parent terms"
 
-    term-control: (cls, term) -> """
+    term-control: (cls, term, prop, desc) -> """
         <label class="#{ cls }">
             <input type="checkbox" value="#{ term.escape \identifier }" 
                 checked="#{ not term.get \hidden }"/>
             #{term.escape \name}
+            <span class="detail">#{term.escape prop} #{ desc }</span>
         </label>
     """
 
