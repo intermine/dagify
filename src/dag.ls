@@ -45,6 +45,16 @@ export class DAG extends Backbone.View
     within = (target, search-space) ->
         ~String(search-space).to-lower-case!index-of target
 
+    zoom-to: (nid) ->
+        return unless @graph? and @renderer?
+        node = @graph.node nid
+        svg-node = first first @renderer._node-roots.filter (is nid)
+        @state.set zoom: 1
+        b-rect = svg-node.get-bounding-client-rect!
+        el-dims = @get-el-dims!
+        console.log b-rect.left, b-rect.top
+        @state.set translate: [el-dims.cx - b-rect.left, el-dims.height - b-rect.top]
+
     set-up-listeners: ->
         @state.on \change:translate, (s, current-translation) ~>
             @zoom.translate current-translation
@@ -69,10 +79,9 @@ export class DAG extends Backbone.View
                 | normed?.length => filter-term is nid or normed `within` label g.node nid
                 | otherwise      => false
             sel.classed \filtered, f
-            # TODO: zoom into singly matching nodes...
             # matching = filter f, g.nodes!
             # if matching.length is 1
-            #    console.log matching
+            #   @state.set zoom: 1
 
         on-graph-change = ~>
             @graph = null

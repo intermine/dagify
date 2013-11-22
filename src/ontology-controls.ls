@@ -33,6 +33,12 @@ export class Controls extends Backbone.View
     show-term-suggestion = (ul, term) ->
         (.append-to ul) $ "<li><a>#{ term.escape \name } (#{ term.escape \identifier })</a></li>"
 
+    select-term = (text-box, report, e, {item}) -->
+        e.prevent-default!
+        term = item.get \identifier
+        text-box.val term
+        report term
+
     render: ->
         @$el.empty!
         @$el.append """
@@ -59,17 +65,13 @@ export class Controls extends Backbone.View
         @roots.each @~insert-root
 
         source = @~suggest-terms
-        select = @~select-term
+        select = select-term @$('.find'), @trigger \chosen, _
+        focus  = select-term @$('.find'), @trigger \filter, _
         ac = @$ '.find'
-                |> (.autocomplete {source, select, focus: select})
+                |> (.autocomplete {source, select, focus})
                 |> (.data \ui-autocomplete)
         ac._render-item = show-term-suggestion
 
-    select-term: (e, {item}) ->
-        e.prevent-default!
-        term = item.get \identifier
-        @$ '.find' .val term
-        @trigger \filter, term
 
     suggest-terms: ({term}, done) ->
         current-id = @state.get(\currentRoot).get \identifier
@@ -106,7 +108,8 @@ export class Controls extends Backbone.View
     terms-for: {}
 
     wire-to-dag: (dag) ->
-        @on \filter, dag.state.set \filter, _
+        @on 'filter chosen', dag.state.set \filter, _
+        @on 'chosen', dag~zoom-to
         @on \chosen:layout, dag~set-layout
         @state.on \change:currentRoot, (state, selected, {init} = {}) ~>
             # Handle this manually. Foundation 5 is not-dynamic :(
@@ -126,7 +129,8 @@ export class Controls extends Backbone.View
             e.prevent-default!
             @$('.find').val null
             @trigger \filter, null
-        'keyup .find': (e) -> @trigger \filter, e.target.value
+        'keyup .find': (e) ->
+            @trigger \filter, e.target.value
         'change .layout': (e) ->
             @trigger \chosen:layout, $(e.target).val!
             $(e.target).blur!
