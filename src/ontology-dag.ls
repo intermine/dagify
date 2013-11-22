@@ -23,7 +23,6 @@ function main
     $(document).foundation!
     flymine = new Service root: FLYMINE
 
-
     window.dag = dag = new DAG dag-opts
         ..set-element document.get-element-by-id \chart
         ..render!
@@ -33,7 +32,9 @@ function main
         ..wire-to-dag dag
         ..render!
 
-    get-graph-for flymine, symbol: \cdc2, 'organism.taxonId': 7227 .then dag~set-graph
+    get-graph-for flymine, symbol: \cdc2, 'organism.taxonId': 7227
+        .then dag~set-graph
+        .fail (err) -> console.error err?.stack ? err
 
 function get-graph-for service, constraint
     def = Q.defer!

@@ -1,14 +1,10 @@
 Backbone = require \backbone
-{UniqueCollection} = require './unique-collection.ls'
-{first, intersection} = require 'prelude-ls'
+{GOTerms} = require './go-terms.ls'
+{pairs-to-obj, first, intersection} = require 'prelude-ls'
 {get-root} = require './graph-utils.ls'
+{RootTerm} = require './root-term.ls'
 
-reflow-section = -> $(document).foundation()
-
-class GOTerms extends UniqueCollection
-
-    -> super [], key-fn: (.identifier)
-
+root-node = (g, n) -> g.node get-root g, n
 
 export class Controls extends Backbone.View
 
@@ -21,8 +17,6 @@ export class Controls extends Backbone.View
         @roots = new GOTerms
         @direct-terms = new GOTerms
         @roots.on \add, @~insert-root
-        @top-terms.on 'add', @~insert-term
-        @direct-terms.on \add, @~insert-direct-term
 
     render: ->
         @$el.empty!
@@ -48,96 +42,55 @@ export class Controls extends Backbone.View
             </dl>
         """
         @roots.each @~insert-root
-        @top-terms.each @~insert-term
-        @direct-terms.each @~insert-direct-term
-        reflow-section!
 
     insert-root: (root) ->
-        is-current = root is @state.get \currentRoot
-        root-section = $ """
-            <dd class="root-term root-term-#{ root.escape \objectId }">
-                <a href="#"
-                   class="title #{ if is-current then \active else ''}">
-                    #{ root.escape \name }
-                </a>
-                <div class="content #{ if is-current then \active else ''}">
-                  <fieldset>
-                    <legend>General Term</legend>
-                    <div class="high-level">
-                    </div>
-                  </fieldset>
-                  <fieldset>
-                    <legend>Specific Term</legend>
-                    <div class="low-level">
-                    </div>
-                  </fieldset>
-                </div>
-            </dd>
-        """
-        root-section.click ~>
-            root-section.find('.content').toggle-class \active
-            @state.set current-root: root
-        @$('.terms').append root-section
-        reflow-section!
+        id = root.get \objectId
+        @root-views[id] = view = new RootTerm model: root, high-level-terms: @top-terms, low-level-terms: @direct-terms
 
-    insert-term: (term) ~>
-        @$(".terms .root-term-#{ term.get \rootTerm } .high-level").append """
-            <label class="high-level-term">
-                <input type="checkbox" value="#{ term.escape \identifier }" 
-                    checked="#{ not term.get \hidden }"/>
-                #{term.escape \name}
-            </label>
-        """
-        reflow-section!
+        view.render!
+        view.on \select:rootTerm, @state.set \currentRoot, _
+        view.trigger \currentRoot, @state.get \currentRoot
+        @$('.terms').append view.el
 
-    insert-direct-term: (term) ->
-        @$(".terms .root-term-#{ term.get \rootTerm } .low-level").append """
-            <label class="low-level-term">
-                <input type="checkbox" value="#{ term.escape \identifier }" 
-                    checked="#{ not term.get \hidden }"/>
-                #{term.escape \name}
-            </label>
-        """
-        reflow-section!
+    read-graph: (g) ->
+        sinks = g.sinks!
+        roots = [g.node n for n in sinks]
+        one-removed = [p for n in sinks
+                            for p in g.predecessors(n)]
+        @state.set({current-root: first roots}, init: true) unless @state.has \currentRoot
+        @roots.add roots
+        for n in one-removed
+            @top-terms.add g.node(n).set root-term: root-node g, n
+        for n in g.nodes! when g.node(n).get \direct
+            @direct-terms.add g.node(n).set root-term: root-node g, n
 
+        @term-names = pairs-to-obj [[r-id, [g.node(n).get \name for n in ns]] for r-id, ns of _.group-by g.nodes!, get-root g]
+
+        console.log @term-names
+
+        $('.ui-autocomplete').add-class \f-dropdown
+
+    root-views: {}
+    term-names: {}
 
     wire-to-dag: (dag) ->
         @on \filter, dag.state.set \filter, _
         @on \chosen:layout, dag~set-layout
         @state.on \change:currentRoot, (state, selected, {init} = {}) ~>
             # Handle this manually. Foundation 5 is not-dynamic :(
-            obj-id = selected.get \objectId
-            for non-selected in @roots.filter (isnt selected)
-                cls = '.root-term-' + non-selected.get \objectId
-                @$("#{ cls } .title").remove-class \active
-                @$("#{ cls } .content").remove-class \active
-            @$(".root-term-#{ obj-id } .content").add-class \active
-            @$(".root-term-#{ obj-id } .title").add-class \active
+            for id, view of @root-views
+                view.trigger \currentRoot, selected
+
+            @$('.find').autocomplete source: @term-names[selected.get \objectId]
 
             dag.trigger 'redraw' unless init
 
-        dag.on \whole:graph, (g) ~>
-            sinks = g.sinks!
-            roots = [g.node n for n in sinks]
-            one-removed = [p for n in sinks
-                             for p in g.predecessors(n)]
-            @state.set({current-root: first roots}, init: true) unless @state.has \currentRoot
-            @roots.add roots
-            for n in one-removed
-                @top-terms.add g.node(n).set root-term: get-root g, n
-            for n in g.nodes! when g.node(n).get \direct
-                @direct-terms.add g.node(n).set root-term: get-root g, n
-            available-terms = [g.node(n).get \name for n in g.nodes!]
-            @$('.find').autocomplete source: available-terms
-            $('.ui-autocomplete').add-class \f-dropdown
+        dag.on \whole:graph, @~read-graph
 
         dag.set-root-filter (ontology-term) ~>
             current-root = @state.get(\currentRoot) ? @roots.first!
+            console.log ontology-term.identifier, current-root.get \identifier
             ontology-term.identifier is current-root.get \identifier
-
-    set-if-unchecked = (coll, selector, key, e) -->
-        hide = @$(selector).filter(':not(:checked)').map( -> $(@).val!).get!
-        coll.each (x) -> x.set key, (x.get(\identifier) in hide)
 
     events: ->
         'click .clear-filter': (e) ->
@@ -145,8 +98,6 @@ export class Controls extends Backbone.View
             @$('.find').val null
             @trigger \filter, null
         'keyup .find': (e) -> @trigger \filter, e.target.value
-        'click .low-level-term': set-if-unchecked @direct-terms, '.low-level-term input', \noneabove
-        'click .high-level-term': set-if-unchecked @top-terms, '.high-level-term input', \hidden
         'change .layout': (e) ->
             @trigger \chosen:layout, $(e.target).val!
             $(e.target).blur!
