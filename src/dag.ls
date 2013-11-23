@@ -45,15 +45,21 @@ export class DAG extends Backbone.View
     within = (target, search-space) ->
         ~String(search-space).to-lower-case!index-of target
 
+    add-centre = (dims) ->
+        dims.cx = dims.width / 2 + dims.left
+        dims.cy = dims.height / 2 + dims.top
+        dims
+
+    pos-info = add-centre . (.get-bounding-client-rect!) . first . first
+
     zoom-to: (nid) ->
-        return unless @graph? and @renderer?
-        node = @graph.node nid
-        svg-node = first first @renderer._node-roots.filter (is nid)
-        @state.set zoom: 1
-        b-rect = svg-node.get-bounding-client-rect!
+        return unless @renderer?
+        @state.set zoom: 0.9 # Zoom first, so that the calculated dimensions below make this into account.
         el-dims = @get-el-dims!
-        console.log b-rect.left, b-rect.top
-        @state.set translate: [el-dims.cx - b-rect.left, el-dims.height - b-rect.top]
+        b-rect = pos-info @renderer._node-roots.filter (is nid)
+        [dx, dy] = [el-dims[dim] - b-rect[dim] for dim in <[ cx cy ]>]
+        [x, y] = @state.get \translate
+        @state.set translate: [x + dx, y + dy]
 
     set-up-listeners: ->
         @state.on \change:translate, (s, current-translation) ~>
@@ -137,8 +143,6 @@ export class DAG extends Backbone.View
         $(window).on \keyup, (e) -> move[e.key-code]?! unless $(e.target).is \input
 
 
-    get-el-centre: ->
-
     get-el-dims: ->
         padding = 20px
         el-dims = pairs-to-obj [[name, @$el[name]! - padding * 2] for name in <[ height width ]>]
@@ -149,7 +153,7 @@ export class DAG extends Backbone.View
             ..cy = ..height / 2 + ..top
             ..right = ..width + padding
 
-    get-node-dims: -> first [e.get-bounding-client-rect! for sel in @g for e in sel]
+    get-node-dims: -> pos-info @g
 
     contains = (outer, inner) ->
         inner.left >= outer.left
