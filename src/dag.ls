@@ -77,17 +77,14 @@ export class DAG extends Backbone.View
             @update-graph!
 
         @state.on 'change:filter', (s, filter-term) ~>
-            sel = @renderer._nodeRoots # TODO - expose this in Renderer
-            label = @renderer.get-node-label!
+            sel    = @renderer._nodeRoots # TODO - expose this in Renderer
+            label  = @renderer.get-node-label!
             normed = filter-term?.to-lower-case!
-            g = @graph
-            f = (nid) ->
-                | normed?.length => filter-term is nid or normed `within` label g.node nid
-                | otherwise      => false
-            sel.classed \filtered, f
-            # matching = filter f, g.nodes!
-            # if matching.length is 1
-            #   @state.set zoom: 1
+            g      = @graph
+            sel.classed \filtered, f =
+                | normed?.length => (nid) -> filter-term is nid or normed `within` label g.node nid
+                | otherwise      => -> false
+            @fit-to-bounds! unless filter-term?
 
         on-graph-change = ~>
             @graph = null
