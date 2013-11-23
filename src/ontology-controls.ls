@@ -40,8 +40,7 @@ export class Controls extends Backbone.View
         report term
 
     render: ->
-        @$el.empty!
-        @$el.append """
+        @$el.html """
             <div class="row collapse">
                 <div class="small-9 columns">
                     <input class="find" type="text" placeholder="filter">
@@ -50,28 +49,28 @@ export class Controls extends Backbone.View
                     <button class="clear-filter postfix button">clear</button>
                 </div>
             </div>
-        """
-        @$el.append """<select class="layout">
-            <option value="BT">Vertical</option>
-            <option value="LR">Horizontal</option>
-            <option value="TB">Inverse Vertical</option>
-            <option value="RL">Inverse Horizontal</option>
-        </select>
-        """
-        @$el.append """
+            <select class="layout">
+                <option value="BT">Vertical</option>
+                <option value="LR">Horizontal</option>
+                <option value="TB">Inverse Vertical</option>
+                <option value="RL">Inverse Horizontal</option>
+            </select>
             <dl class="accordion terms" data-section=accordion>
             </dl>
         """
         @roots.each @~insert-root
+        @init-autocomplete!
 
+    init-autocomplete: ->
+        finder = @$ '.find'
+        report = @~trigger
         source = @~suggest-terms
-        select = select-term @$('.find'), @trigger \chosen, _
-        focus  = select-term @$('.find'), @trigger \filter, _
-        ac = @$ '.find'
+        select = (-> finder.blur!) . select-term finder, report \chosen, _
+        focus  = select-term finder, report \filter, _
+        ac = finder
                 |> (.autocomplete {source, select, focus})
                 |> (.data \ui-autocomplete)
         ac._render-item = show-term-suggestion
-
 
     suggest-terms: ({term}, done) ->
         current-id = @state.get(\currentRoot).get \identifier
