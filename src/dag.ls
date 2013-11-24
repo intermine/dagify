@@ -257,7 +257,7 @@ export class DAG extends Backbone.View
                             and all (-> g.node(it).get \nonebelow), g.successors(n)]
         unwanted-parents = [p for n in g.nodes!
                               when g.node(n).get \noneabove
-                                for p in ancestors-of g, n
+                                for p in [n] ++ ancestors-of g, n
                                 when g.out-edges(p).length]
 
         protected-parents = if unwanted-parents.length is 0
