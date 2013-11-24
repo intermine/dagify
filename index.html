@@ -33,39 +33,35 @@
     .node .label-bkg {
         stroke-width: 1.5px;
         stroke: #333;
-        fill: #123456;
+        fill: #287B7B;
     }
 
     .node.coll > .label > rect {
         stroke-dasharray: 3.5, 10;
         fill: none;
     }
-    .node.direct .label-bkg {
-        fill: #123456;
-        opacity: 1;
-    }
     .node .label-content text {
         fill: white;
+        text-rendering: optimize-legibility;
+        font-weight: bold;
     }
 
-    /*
     .node.rank-0 .label-bkg {
-        fill: rgba(42, 32, 119, 0.75);
+        fill: #364F89;
     }
-    .node.rank-0 tspan {
-        fill: white;
-    }
-    */
     .node.rank-1 > .label > rect {
-        fill: rgba(24, 6, 51, 1);
+        fill: #2D5353;
     }
-
+    .node.direct .label-bkg {
+        fill: #084343;
+        opacity: 1;
+    }
     .node.nonebelow > .label > rect {
         opacity: 0.8;
         stroke-dasharray: 3.5, 10;
     }
     .node.filtered > .label > rect {
-        fill: #6EE63D;
+        fill: #35A435;
     }
 
     .edge rect {

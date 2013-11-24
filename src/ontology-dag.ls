@@ -17,7 +17,7 @@ FLYMINE = 'http://beta.flymine.org/beta/service'
 $(document).ready main
 
 dag-opts =
-    rank-scale: [0.9, 0.5]
+    rank-scale: [0.95, 0.8]
     node-key: (.identifier)
     edge-labels: <[relationship]>
     edge-props: <[childTerm parentTerm]>
