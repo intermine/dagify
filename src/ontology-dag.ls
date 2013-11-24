@@ -16,13 +16,16 @@ FLYMINE = 'http://beta.flymine.org/beta/service'
 
 $(document).ready main
 
+cssify = (.replace /[^a-z-]/g, '-') . (.to-lower-case!) . String
+
 dag-opts =
     rank-scale: [0.95, 0.8]
     node-key: (.identifier)
     edge-labels: <[relationship]>
     edge-props: <[childTerm parentTerm]>
     is-closable: (node) -> not node.get \direct
-    get-node-class: (graph, nid, node) -> if node.get(\direct) then \direct else \inferred
+    get-edge-class: (edge) -> cssify edge.get \relationship
+    get-node-class: (node) -> if node.get(\direct) then \direct else \inferred
 
 function main
     $(document).foundation!

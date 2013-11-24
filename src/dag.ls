@@ -21,6 +21,7 @@ export class DAG extends Backbone.View
         @edge-labels = opts.edge-labels ? <[name value label class]>
         @is-closable = opts?.is-closable ? (node) -> true
         @get-node-class = opts?.get-node-class ? (-> null)
+        @get-edge-class = opts?.get-edge-class ? (-> null)
         @get-roots = opts?.get-roots ? (.sinks!)
         edge-props = opts?.edge-props ? <[source target]>
         @edge-vec = (f, edge) --> map f . edge~get, edge-props
@@ -309,6 +310,12 @@ export class DAG extends Backbone.View
             ..layout layout
             ..graph graph
 
+        super-draw-edge = @renderer.draw-edge!
+        @renderer.draw-edge (g, eid, selection) ~>
+          super-draw-edge ...arguments
+          edge-class = @get-edge-class @graph.edge eid
+          selection.classed edge-class, true if edge-class?
+
         super-draw-node = @renderer.draw-node!
         @renderer.draw-node (g, nid, svg-node) ~>
             super-draw-node g, nid, svg-node
@@ -331,7 +338,7 @@ export class DAG extends Backbone.View
                 svg-node.on \click, ~>
                     node.set nonebelow: not node.get \nonebelow
                     svg-node.classed \nonebelow, node.get \nonebelow
-            nc = @get-node-class g, nid, node
+            nc = @get-node-class node
             svg-node.classed nc, true if nc?
 
         @renderer
