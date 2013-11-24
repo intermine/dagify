@@ -56,7 +56,7 @@ export class DAG extends Backbone.View
         return unless @renderer?
         @state.set zoom: 0.9 # Zoom first, so that the calculated dimensions below make this into account.
         el-dims = @get-el-dims!
-        b-rect = pos-info @renderer._node-roots.filter (is nid)
+        b-rect = pos-info @renderer.node-roots!.filter (is nid)
         [dx, dy] = [el-dims[dim] - b-rect[dim] for dim in <[ cx cy ]>]
         [x, y] = @state.get \translate
         @state.set translate: [x + dx, y + dy]
@@ -77,7 +77,7 @@ export class DAG extends Backbone.View
             @update-graph!
 
         @state.on 'change:filter', (s, filter-term) ~>
-            sel    = @renderer._nodeRoots # TODO - expose this in Renderer
+            sel    = @renderer.node-roots!
             label  = @renderer.get-node-label!
             normed = filter-term?.to-lower-case!
             g      = @graph
