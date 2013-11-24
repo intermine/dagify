@@ -34,7 +34,7 @@ dist:
 dagify.js: $(LIB)
 	$(BROWSERIFY) -r ./lib/dagify.js:dagify > dagify.js
 
-org-chart.js: dev-install 
+org-chart.js: $(LIB)
 	$(BROWSERIFY) \
 		--debug \
 		--extension=ls \
@@ -67,7 +67,7 @@ report-widget: lib ontology-widget.js dist
 	cp views/*.eco dist/
 	cp style.css dist/
 
-all: clean org-chart.js ontology-dag.js
+all: org-chart.js ontology-dag.js
 
 .PHONY: all build-browser dev-install loc clean report-widget
 
