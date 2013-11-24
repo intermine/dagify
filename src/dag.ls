@@ -3,9 +3,9 @@ d3 = require \d3
 Backbone = require \backbone
 {UniqueCollection} = require './unique-collection.ls'
 {key-code} = require './keycodes.ls'
-{ancestors-of, get-rank} = require './graph-utils.ls'
+{can-reach-any, ancestors-of, get-rank, get-root} = require './graph-utils.ls'
 
-{difference, maximum, minimum, filter, max, pairs-to-obj, split, id, any, each, find, sort-by, last, join, map, is-type, all, first} = require 'prelude-ls'
+{union, difference, maximum, minimum, filter, max, pairs-to-obj, split, id, any, each, find, sort-by, last, join, map, is-type, all, first} = require 'prelude-ls'
 
 class CanBeHidden extends Backbone.Model
 
@@ -216,14 +216,12 @@ export class DAG extends Backbone.View
     marker-end: ->
         if @state.get \direction is \LR then 'url(#Triangle)' else 'url(#TriangleDown)'
 
-    node-is-hidden = ({hide-attrs, hidden-classes, hidden-paths}, unwanted-kids, unwanted-parents, nm) -->
+    node-is-hidden = ({hide-attrs, hidden-classes, hidden-paths}, black-list, nm) -->
         node = nm.toJSON!
         cls = node.class
         pth = node.path
         nt = node.node-type
-        node.hidden or node.noneabove
-                    or (nm in unwanted-kids)
-                    or (nm in unwanted-parents)
+        node.hidden or (nm in black-list)
                     or (hide-attrs and nt is \attr)
                     or (cls in hidden-classes)
                     or (any pth~match, hidden-paths)
@@ -249,28 +247,31 @@ export class DAG extends Backbone.View
 
         @trigger \whole:graph, g # Let interested parties know what the full graph looks like.
 
-        unwanted-kids = [g.node(n) for n in g.nodes!
-                                   when g.out-edges(n).length # this is required. No idea why
-                                   and all (-> g.node(it).get \nonebelow), g.successors(n)]
-        unwanted-parents = [g.node(p) for n in g.nodes!.filter (-> g.node(it).get(\noneabove))
-                                      for p in ancestors-of g, n
-                                      when g.out-edges(p).length]
+        roots = filter (@state.get(\rootFilter) g), @get-roots g
+
+        # Reduce to the current subgraph.
+        g = g.filter-nodes can-reach-any g, roots
+
+        unwanted-kids = [n for n in g.nodes!
+                            when g.out-edges(n).length # this is required. No idea why
+                            and all (-> g.node(it).get \nonebelow), g.successors(n)]
+        unwanted-parents = [p for n in g.nodes!
+                              when g.node(n).get \noneabove
+                                for p in ancestors-of g, n
+                                when g.out-edges(p).length]
 
         protected-parents = if unwanted-parents.length is 0
             []
         else
-            [g.node(p) for n in g.nodes!.filter (-> g.node(it).get \direct and not g.node(it).get \noneabove)
-                       for p in [n] ++ ancestors-of g, n]
+            [p for n in g.nodes!
+                      when g.node(n).get \direct
+                          and not g.node(n).get \noneabove
+                      for p in [n] ++ ancestors-of g, n]
 
-        unwanted-parents = difference unwanted-parents, protected-parents
+        unwanted = union unwanted-kids, unwanted-parents
+        black-list = map g~node, unwanted `difference` protected-parents
 
-        can-reach-any = (roots, nid) -->
-            succ = g.successors nid
-            (nid in roots) or (any (in roots), succ) or (any (can-reach-any roots), succ)
-
-        is-hidden = node-is-hidden @state.toJSON!, unwanted-kids, unwanted-parents
-
-        roots = filter (@state.get(\rootFilter) g), @get-roots g
+        is-hidden = node-is-hidden @state.toJSON!, black-list
 
         # Now trim the graph down, first any user configured filter
         g = g.filter-nodes ((nid) ~> @node-filter g.node(nid).toJSON!, nid, g) if @node-filter?
@@ -279,7 +280,7 @@ export class DAG extends Backbone.View
         g = g.filter-nodes (nid) -> not is-hidden g.node(nid)
 
         # and once more, getting rid of now stranded sections.
-        g = g.filter-nodes can-reach-any roots
+        g = g.filter-nodes can-reach-any g, roots
 
         align-attrs = @state.get \alignAttrs
         g.each-node (nid, nm) ->

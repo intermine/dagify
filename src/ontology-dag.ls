@@ -5,7 +5,7 @@ Backbone.$ = $
 {Controls} = require './ontology-controls.ls'
 {Service} = intermine # TODO: browserify intermine!!
 
-{apply, concat-map, fold, id, any, unique, each, find, sort-by, last, join, map, is-type, all, first} = require 'prelude-ls'
+{group-by, apply, concat-map, fold, id, any, unique, each, find, sort-by, last, join, map, is-type, all, first} = require 'prelude-ls'
 
 FLYMINE = 'http://beta.flymine.org/beta/service'
 
@@ -41,11 +41,14 @@ function get-graph-for service, constraint
     do
         terms <- service.rows term-query constraint
         direct = [direct for [direct, indirect] in terms]
+        # direct-to-indirect = group-by (.0), terms
         identifiers = terms |> concat-map id |> unique
         edges <- service.records edge-query identifiers
         nodes <- service.records node-query identifiers
         for n in nodes
             n.direct = n.identifier in direct
+            # if n.direct
+            #    n.parents = map (.1), direct-to-indirect[n.identifier]
         def.resolve {nodes, edges}
     return def.promise
 

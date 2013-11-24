@@ -1,22 +1,14 @@
 Backbone = require \backbone
 {GOTerms} = require './go-terms.ls'
 {Obj, any, unique, map, pairs-to-obj, fold, first, intersection} = require 'prelude-ls'
-{get-root} = require './graph-utils.ls'
+{get-root, ancestors-of, descendents-of} = require './graph-utils.ls'
 {RootTerm} = require './root-term.ls'
 
 root-node = (g, n) -> g.node get-root g, n
 
-flat-graph-map = (f, g, n) -->
-    for-node = f g, n
-    unique fold (++), for-node, map (flat-graph-map f, g), for-node
+count-desc = (.length) . descendents-of
 
-descendents-in = flat-graph-map (g, n) -> g.predecessors n
-
-ancestors-in = flat-graph-map (g, n) -> g.successors n
-
-count-desc = (.length) . descendents-in
-
-count-anc = (.length) . ancestors-in
+count-anc = (.length) . ancestors-of
 
 export class Controls extends Backbone.View
 
