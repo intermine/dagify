@@ -116,6 +116,7 @@ export class Controls extends Backbone.View
             ontology-term.identifier is current-root.get \identifier
 
     events: ->
+        'submit': (.prevent-default!)
         'click .clear-filter': (e) ->
             e.prevent-default!
             @$('.find').val null

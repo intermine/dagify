@@ -63,6 +63,13 @@
     .node.filtered > .label > rect {
         fill: #35A435;
     }
+    .edge.filtered path {
+        stroke: #35A435;
+    }
+    .node.filtered > .label > rect,
+    .edge.filtered path {
+        filter: url(#glow);
+    }
 
     .edge rect {
         fill: #fff;

@@ -78,13 +78,17 @@ export class DAG extends Backbone.View
             @update-graph!
 
         @state.on 'change:filter', (s, filter-term) ~>
-            sel    = @renderer.node-roots!
+            n-sel    = @renderer.node-roots!
+            e-sel    = @renderer.edge-roots!
+
             label  = @renderer.get-node-label!
             normed = filter-term?.to-lower-case!
             g      = @graph
-            sel.classed \filtered, f =
+            n-sel.classed \filtered, n-f =
                 | normed?.length => (nid) -> filter-term is nid or normed `within` label g.node nid
                 | otherwise      => -> false
+            e-sel.classed \filtered, (eid) -> any n-f, g.incident-nodes eid
+
             @fit-to-bounds! unless filter-term?
 
         on-graph-change = ~>
@@ -352,6 +356,20 @@ export class DAG extends Backbone.View
                     <feMerge> 
                         <feMergeNode/> <!-- this contains the offset blurred image -->
                         <feMergeNode in="SourceGraphic"/> <!-- this contains the element that the filter is applied to -->
+                    </feMerge>
+                </filter>
+                <!-- a transparent grey glow with no offset -->
+                <filter id="glow">
+                    <!-- Returns a green colour -->
+                    <feColorMatrix type="matrix" values=
+                                "0 0 0 0 0
+                                 1 1 1 1 0
+                                 0 0 0 0 0
+                                 0 0 0 1 0"/>
+                    <feGaussianBlur stdDeviation="5" result="coloredBlur"/>
+                    <feMerge>
+                        <feMergeNode in="coloredBlur"/>
+                        <feMergeNode in="SourceGraphic"/>
                     </feMerge>
                 </filter>
                 <g transform="translate(20,20)"/>
