@@ -23,9 +23,12 @@ dag-opts =
     node-key: (.identifier)
     edge-labels: <[relationship]>
     edge-props: <[childTerm parentTerm]>
-    is-closable: (node) -> not node.get \direct
+    on-node-click: (nid) -> @zoom-to nid
     get-edge-class: (edge) -> cssify edge.get \relationship
     get-node-class: (node) -> if node.get(\direct) then \direct else \inferred
+    on-edge-click: (g, eid) ->
+        @zoom-to g.source(eid)
+        set-timeout (~> @zoom-to g.target eid), 770ms
 
 function main
     $(document).foundation!

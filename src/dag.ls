@@ -20,6 +20,8 @@ export class DAG extends Backbone.View
         @node-labels = opts.node-labels ? <[name value label class]>
         @edge-labels = opts.edge-labels ? <[name value label class]>
         @is-closable = opts?.is-closable ? (node) -> true
+        @on-node-click = opts?.on-node-click
+        @on-edge-click = opts?.on-edge-click
         @get-node-class = opts?.get-node-class ? (-> null)
         @get-edge-class = opts?.get-edge-class ? (-> null)
         @get-roots = opts?.get-roots ? (.sinks!)
@@ -53,22 +55,36 @@ export class DAG extends Backbone.View
 
     pos-info = add-centre . (.get-bounding-client-rect!) . first . first
 
+    zoom-to = (new-zoom, [dx, dy]) ->
+        state = @state
+        dz = @zoom
+        [x, y] = state.get \translate
+        scale  = state.get \zoom
+        {cx, cy} = @get-el-dims!
+        [tx, ty] = [(cx - x + dx) / scale, (cy - y + dy) / scale]
+        [lx, ly] = [tx * new-zoom + x, ty * new-zoom + y]
+        new-translate = [x + cx - lx, y + cy - ly]
+        dz.scale new-zoom
+        dz.translate new-translate
+
+        d3.transition!
+            .duration 750ms # @state.get \duration
+            .call dz~event
+
     zoom-to: (nid) ->
         return unless @renderer?
-        @state.set zoom: 0.9 # Zoom first, so that the calculated dimensions below make this into account.
         el-dims = @get-el-dims!
         b-rect = pos-info @renderer.node-roots!.filter (is nid)
-        [dx, dy] = [el-dims[dim] - b-rect[dim] for dim in <[ cx cy ]>]
-        [x, y] = @state.get \translate
-        @state.set translate: [x + dx, y + dy]
+        [dx, dy] = [b-rect[dim] - el-dims[dim] for dim in <[ cx cy ]>]
+        return zoom-to.call @, 0.9, [dx - b-rect.width, dy]
 
     set-up-listeners: ->
         @state.on \change:translate, (s, current-translation) ~>
-            @zoom.translate current-translation
+            @zoom?.translate current-translation
             @g.attr \transform, "translate(#{ current-translation }) scale(#{ s.get \zoom })"
 
         @state.on \change:zoom, (s, current-zoom) ~>
-            @zoom.scale current-zoom
+            @zoom?.scale current-zoom
             @g.attr \transform, "translate(#{ s.get(\translate) }) scale(#{ current-zoom })"
 
         @state.on \change:rankDir, @~update-graph
@@ -114,23 +130,8 @@ export class DAG extends Backbone.View
         # Translation adjustment gratefully taken from:
         #   http://bl.ocks.org/linssen/7352810 
         zoom = (factor, event) ~~>
-            [x, y] = @state.get \translate
             scale  = @state.get \zoom
-            {cx, cy} = @get-el-dims!
-
-            new-zoom = scale + factor
-            [tx, ty] = [(cx - x) / scale, (cy - y) / scale]
-            [lx, ly] = [tx * new-zoom + x, ty * new-zoom + y]
-            new-translate = [x + cx - lx, y + cy - ly]
-
-            d3.transition!
-              .duration 750ms # @state.get \duration
-              .tween \zoom, ~>
-                interp-tr = d3.interpolate [x, y], new-translate
-                interp-sc = d3.interpolate scale, new-zoom
-                (time) ~> @state.set do
-                    zoom: interp-sc time
-                    translate: interp-tr time
+            zoom-to.call @, (scale + factor), [0, 0]
 
         move = pairs-to-obj [
             [key-code.UP, shift 0, 100],
@@ -182,7 +183,8 @@ export class DAG extends Backbone.View
         new-y = y * new-zoom
 
         # Apply the scale changes.
-        @state.set zoom: new-zoom, translate: [new-x, new-y]
+        @zoom.scale(new-zoom).translate([new-x, new-y]).event @g
+        # @state.set zoom: new-zoom, translate: [new-x, new-y]
 
         ## TODO: Is there a one step way to calculate this??
 
@@ -194,7 +196,8 @@ export class DAG extends Backbone.View
         dy = el-dims.cy - ny
 
         new-translation = [new-x + dx, new-y + dy]
-        @state.set translate: new-translation
+        # @state.set translate: new-translation
+        @zoom.translate(new-translation).event @g
 
         set-timeout (~> @fit-to-bounds recurrance + 1), 10ms
 
@@ -315,10 +318,13 @@ export class DAG extends Backbone.View
             ..graph graph
 
         super-draw-edge = @renderer.draw-edge!
-        @renderer.draw-edge (g, eid, selection) ~>
+        @renderer.draw-edge (g, eid, sel) ~>
           super-draw-edge ...arguments
           edge-class = @get-edge-class @graph.edge eid
-          selection.classed edge-class, true if edge-class?
+          sel.classed edge-class, true if edge-class?
+          if @on-edge-click?
+              sel.select-all('path').on \click, ~> @on-edge-click @graph, eid, sel
+              sel.select-all('.edge-label').on \click, ~> @on-edge-click @graph, eid, sel
 
         super-draw-node = @renderer.draw-node!
         @renderer.draw-node (g, nid, svg-node) ~>
@@ -338,7 +344,9 @@ export class DAG extends Backbone.View
               .enter!
               .append \title
               .text (d) -> d
-            if @is-closable node
+            if @on-node-click?
+                svg-node.on \click, ~> @on-node-click nid, node, svg-node
+            else if @is-closable node
                 svg-node.on \click, ~>
                     node.set nonebelow: not node.get \nonebelow
                     svg-node.classed \nonebelow, node.get \nonebelow
@@ -381,6 +389,7 @@ export class DAG extends Backbone.View
 
         @zoom = d3.behavior.zoom!
             .scale @state.get \zoom
+            .translate @state.get \translate
             .on \zoom, ~> @state.set zoom: d3.event.scale, translate: d3.event.translate.slice!
 
         @svg.call @zoom
@@ -413,5 +422,5 @@ export class DAG extends Backbone.View
             ..update!
 
         console.debug "Update took #{ (new Date().get-time! - start) / 1000ms } seconds"
-        set-timeout @~fit-to-bounds, duration + 1ms if graph.size!
+        set-timeout @~fit-to-bounds, duration + 1ms if graph.size! # TODO: avoid this if already zoomed?
 
