@@ -14,6 +14,12 @@ results-c = require '../data/result_2-nodes.json'
 
 FLYMINE = 'http://beta.flymine.org/beta/service'
 
+Promise = do ->
+    unit = (a) -> Q a
+    bind = (ma, f) --> Q(ma).then f
+    lift = (f, ma) --> bind ma, f
+    {unit, bind, lift}
+
 $(document).ready main
 
 cssify = (.replace /[^a-z-]/g, '-') . (.to-lower-case!) . String
@@ -43,9 +49,10 @@ function main
         ..wire-to-dag dag
         ..render!
 
-    get-mock-graph-for flymine, symbol: \cdc2, 'organism.taxonId': 7227
+    p = get-graph-for flymine, symbol: \cdc2, 'organism.taxonId': 7227
         .then dag~set-graph
         .fail (err) -> console.error err?.stack ? err
+    console.debug p
 
 function get-mock-graph-for service, constraint then Q.try ->
     terms = results-a.results
@@ -57,17 +64,28 @@ function get-mock-graph-for service, constraint then Q.try ->
     return {nodes, edges}
 
 function get-graph-for service, constraint
-    def = Q.defer!
-    do
-        terms <- service.rows term-query constraint
-        direct = [direct for [direct, indirect] in terms]
+    let {bind} = Promise
+        terms <- bind service.rows term-query constraint
+        direct = _.index-by [direct for [direct, indirect] in terms]
         identifiers = terms |> concat-map id |> unique
-        edges <- service.records edge-query identifiers
-        nodes <- service.records node-query identifiers
+        [edges, nodes] <- bind Q.all [service.records q identifiers for q in [edge-query, node-query]]
         for n in nodes
-            n.direct = n.identifier in direct
-        def.resolve {nodes, edges}
-    return def.promise
+            n.direct = direct[n.identifier]? # in direct
+        {nodes, edges}
+
+#
+#   def = Q.defer!
+#   do
+#       terms <- service.rows term-query constraint
+#       direct = [direct for [direct, indirect] in terms]
+#       identifiers = terms |> concat-map id |> unique
+#       edges <- service.records edge-query identifiers
+#       nodes <- service.records node-query identifiers
+#       for n in nodes
+#           n.direct = n.identifier in direct
+#       def.resolve {nodes, edges}
+#   return def.promise
+#
 
 # threading = (promise, ...steps) -> fold ((p, f) -> p.then f), promise, steps
 
