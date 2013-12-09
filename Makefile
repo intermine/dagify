@@ -11,6 +11,35 @@ BROWSERIFY = node_modules/.bin/browserify
 UGLIFYJS = node_modules/.bin/uglifyjs
 MOCHA = node_modules/.bin/mocha
 
+
+build/org-chart.js: $(LIB)
+	mkdir -p build
+	$(BROWSERIFY) \
+		--debug \
+		--extension ls \
+		--transform liveify \
+		--entry ./src/org-chart.ls \
+		> build/org-chart.js
+
+build/ontology-widget.js: $(LIB) 
+	mkdir -p build
+	$(BROWSERIFY) \
+		--debug \
+		--extension ls \
+		--standalone OntologyWidget \
+		--transform liveify \
+		--require ./src/ontology-widget.ls \
+		> build/ontology-widget.js
+
+build/ontology-demo.js: $(LIB)
+	mkdir -p build
+	$(BROWSERIFY) \
+		--debug \
+		--extension ls\
+		--transform liveify \
+		--entry ./src/ontology-demo.ls \
+		--outfile build/ontology-demo.js
+
 lib:
 	mkdir lib/
 
@@ -34,28 +63,6 @@ dist:
 dagify.js: $(LIB)
 	$(BROWSERIFY) -r ./lib/dagify.js:dagify > dagify.js
 
-org-chart.js: $(LIB)
-	$(BROWSERIFY) \
-		--debug \
-		--extension=ls \
-		--transform liveify \
-		--entry ./src/org-chart.ls \
-		> org-chart.js
-
-ontology-dag.js: $(LIB)
-	$(BROWSERIFY) \
-		--debug \
-		--extension=ls \
-		--transform liveify \
-		--entry ./src/ontology-dag.ls \
-		> ontology-dag.js
-
-demo.js: $(LIB)
-	$(BROWSERIFY) -e ./lib/demo.js > demo.js
-
-ontology-widget.js: $(LIB)
-	$(BROWSERIFY) -r ./lib/presenter.js:ontology-widget > ontology-widget.js
-
 package.json: package.ls
 	$(LSC) --compile --json package.ls
 
@@ -67,7 +74,7 @@ report-widget: lib ontology-widget.js dist
 	cp views/*.eco dist/
 	cp style.css dist/
 
-all: org-chart.js ontology-dag.js
+all: build/org-chart.js build/ontology-demo.js
 
 .PHONY: all build-browser dev-install loc clean report-widget
 
@@ -85,6 +92,7 @@ clean:
 	rm --force --recursive lib
 	rm --force --recursive dist
 	rm --force --recursive jstl
+	rm --force --recursive build
 	rm --force *.js
 
 build-browser: dagify.js
