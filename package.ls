@@ -26,7 +26,8 @@ licenses:
 
 dev-dependencies:
     'd3': '~3.3.9'
-    'dagre-d3': 'git://github.com/alexkalderimis/dagre-d3.git#2decb32'
+    'dagre-d3': 'alexkalderimis/dagre-d3'
+    "imjs": "alexkalderimis/imjs" # replace with imjs ref once public
     'zepto-browserify': '1.0.0'
     'prelude-ls': "~1.0.3"
     'backbone': '~1.1.0'
@@ -37,5 +38,4 @@ dev-dependencies:
     'eco': "~1.1.0-rc-3"
     "q": "~0.9.7"
     "liveify": "~0.3.1"
-    "imjs": "alexkalderimis/imjs" # replace with imjs ref once public
 
