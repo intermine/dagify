@@ -37,4 +37,5 @@ dev-dependencies:
     'eco': "~1.1.0-rc-3"
     "q": "~0.9.7"
     "liveify": "~0.3.1"
+    "imjs": "alexkalderimis/imjs" # replace with imjs ref once public
 

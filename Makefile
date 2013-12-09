@@ -36,6 +36,7 @@ build/ontology-demo.js: $(LIB)
 	$(BROWSERIFY) \
 		--debug \
 		--extension ls\
+		--noparse node_modules/imjs/js/im.js \
 		--transform liveify \
 		--entry ./src/ontology-demo.ls \
 		--outfile build/ontology-demo.js

@@ -1,9 +1,9 @@
 Q = require \q
+{Service} = require \imjs
 {concat-map, id, unique} = require 'prelude-ls'
 
 OntologyWidget = require './ontology-widget.ls'
 
-{Service} = intermine # TODO: browserify intermine!!
 
 # Mock results.
 results-a = require '../data/result_0.json'
