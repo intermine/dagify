@@ -27,7 +27,7 @@ licenses:
 dev-dependencies:
     'd3': '~3.3.9'
     'dagre-d3': 'alexkalderimis/dagre-d3'
-    "imjs": "alexkalderimis/imjs" # replace with imjs ref once public
+    "imjs": '~3.0.2'
     'zepto-browserify': '1.0.0'
     'prelude-ls': "~1.0.3"
     'backbone': '~1.1.0'
