@@ -14,11 +14,11 @@ build/org-chart.js: $(LIB) $(BROWSERIFY) build
 		--entry ./src/org-chart.ls \
 		> build/org-chart.js
 
-build/ontology-widget.js: $(LIB) $(BROWSERIFY) build
+build/dag-viewer.js: $(LIB) $(BROWSERIFY) build
 	$(BROWSERIFY) \
 		--debug \
 		--extension ls \
-		--standalone OntologyWidget \
+		--standalone DAGViewer \
 		--transform liveify \
 		--require ./src/ontology-widget.ls \
 		> build/ontology-widget.js
@@ -26,7 +26,7 @@ build/ontology-widget.js: $(LIB) $(BROWSERIFY) build
 build/ontology-demo.js: $(BROWSERIFY) $(LIB) build
 	$(BROWSERIFY) \
 		--debug \
-		--extension ls\
+		--extension ls \
 		--noparse node_modules/imjs/js/im.js \
 		--transform liveify \
 		--entry ./src/ontology-demo.ls \
@@ -58,7 +58,7 @@ package.json: package.ls $(LSC)
 $(LSC):
 	npm install LiveScript
 
-all: build/org-chart.js build/ontology-demo.js
+all: build/dag-viewer.js build/org-chart.js build/ontology-demo.js
 
 .PHONY: all build-browser dev-install loc clean report-widget
 
