@@ -18,19 +18,19 @@ export class Controls extends Backbone.View
 
     initialize: (options = {}) ->
         @term-key = tk = options.term-key ? (.identifier)
-        @term-template = _.template options.term-template ? """<li><a><%- name %> (<%- identifier %>)</a></li>"""
+        @term-template = _.template options.term-template ? """<%- name %> (<%- identifier %>)"""
         @state = new Backbone.Model
         @top-terms = new Terms tk
         @roots = new Terms tk
         @direct-terms = new Terms tk
         @roots.on \add, @~insert-root
 
-    show-term-suggestion: (ul, term) -> (.append-to ul) $ @term-template term.toJSON!
+    show-term-suggestion: (ul, term) -> (.append-to ul) $ "<li><a>#{ @term-template term.toJSON! }</a></li>"
 
     select-term: (text-box, report, e, {item}) ~~>
         e.prevent-default!
         term = @term-key item.toJSON!
-        text-box.val term
+        text-box.val @term-template item.toJSON!
         report term
 
     render: ->
