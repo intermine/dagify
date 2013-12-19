@@ -1,219 +1,153 @@
-.progress,
-.homologue-progress {
-    display: none;
+.ui-helper-hidden-accessible{display:none}
+ul.ui-autocomplete {
+    padding: 0px;
 }
-.dag .progress {
-    position: relative;
-    top: 30%;
-    height: 30%;
-    left: 0;
+ul.ui-autocomplete .ui-state-focus {
+    background: #2284a1;
+    color: white;
+}
+#chart {
+    height: 100%;
+}
+svg {
+    shape-rendering: auto;
+    height: 100%;
     width: 100%;
-}
-.ontology-table, .ontology-table .slide-control {
-    border: 1px solid #ccc;
-}
-.ontology-table div.content {
-}
-table.tablesorter thead tr .header {
-    padding-right: 1.5em;
-    background-image: url(data:image/gif;base64,R0lGODlhFQAJAIAAACMtMP///yH5BAEAAAEALAAAAAAVAAkAAAIXjI+AywnaYnhUMoqt3gZXPmVg94yJVQAAOw==);
-    background-repeat: no-repeat;
-    background-position: center right;
-    cursor: pointer;
-}
-table.tablesorter thead tr .headerSortUp {
-    background-image: url(data:image/gif;base64,R0lGODlhFQAEAIAAACMtMP///yH5BAEAAAEALAAAAAAVAAQAAAINjB+gC+jP2ptn0WskLQA7);
-}
-table.tablesorter thead tr .headerSortDown {
-    background-image: url(data:image/gif;base64,R0lGODlhFQAEAIAAACMtMP///yH5BAEAAAEALAAAAAAVAAQAAAINjI8Bya2wnINUMopZAQA7);
-}
-table.tablesorter thead tr .headerSortDown, table.tablesorter thead tr .headerSortUp {
-    background-color: #8dbdd8;
-}
-.ontology-table {
-    overflow: hidden;
-    position: fixed;
-    display: none;
-    z-index: 1000;
-    background: #fff;
-    opacity: 0.9;
-}
-.ontology-table .slide-control {
-    float: left;
-    left: 0;
-    top: 0;
-    height: 100%;
-    width: 60px;
-    border-top: none;
-    border-left: none;
-    border-bottom: none;
-    font-size: 40px;
-    padding-left: 5px;
-    padding-top: 5px;
-}
-.ontology-table .section-container {
-    width: 95%;
-    height: 100%;
-}
-.ontology-table .ontology-table-container {
-    position: relative;
-    left: 30px;
-    height: 100%;
-    top: 0;
-}
-.dag {
-    width: 100%;
-    height: 100%;
-}
-.graph-control {
-    font-size: 12px;
-    background: #eee;
-    width: 300px;
-    position: absolute;
-    left: 25px;
-    bottom: 25px;
-    border: 1px solid #ccc;
-    padding: 1.5em;
-}
-.graph-control .resizer {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-}
-.graph-control .hidable {
-    display: none;
-}
-.ontology-table tr.highlit td {
-    background: #5fc0ce;
 }
 
-svg {
-    background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAdCAMAAACKeiw+AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAAZQTFRF////9fb3h/JDwQAAABtJREFUeNpiYMQLGBgZ8IJR6VHpUWnKpAECDACcGgA72QxfPgAAAABJRU5ErkJggg==);
-}
-.node rect {
-    white-space: normal;
+.node .label-bkg {
     stroke-width: 1.5px;
     stroke: #333;
+    fill: #287B7B;
 }
-.node.highlight rect {
-    stroke: rgba(151, 23, 164, 0.6);
-    stroke-width: 10px;
+
+.node.coll > .label > rect {
+    stroke-dasharray: 3.5, 10;
+    fill: none;
 }
-.node rect.direct {
-    fill: red;
-}
-.node rect.focus {
-}
-text {
-    font-family: "Helvetica Neue", "Helvetica", "Droid Sans", "Ubuntu";
-}
-.node text.dag-label {
-    stroke-width: 3px;
+.node .label-content text {
+    fill: white;
+    text-rendering: optimize-legibility;
     font-weight: bold;
-    fill: #000;
 }
-.node text.focus,
-.node text.direct {
-    fill: #fff;
+
+.node.rank-0 .label-bkg {
+    fill: #364F89;
 }
-.node text.chord-label.direct {
-    fill: red;
+.node.rank-1 > .label > rect {
+    fill: #2D5353;
 }
-.node:hover {
-    cursor: pointer;
+.node.direct .label-bkg {
+    fill: #084343;
+    opacity: 1;
 }
+.node.nonebelow > .label > rect {
+    opacity: 0.8;
+    stroke-dasharray: 3.5, 10;
+}
+.node.filtered > .label > rect {
+    fill: #35A435;
+}
+.edge.filtered path {
+    stroke: #35A435;
+}
+.node.filtered > .label > rect,
+.edge.filtered path {
+    filter: url(#glow);
+}
+
 .edge rect {
     fill: #fff;
 }
+
 .edge path {
     fill: none;
+    stroke: #333;
+    stroke-width: 1.5px;
 }
-.link {
-    fill: none;
-    opacity: 0.5;
+.edge.regulates path {
+    stroke-dasharray: 3.5, 10;
 }
-.chord {
-    fill: none;
-    opacity: 0.5;
+.edge.part-of path {
+    stroke-dasharray: 15, 10, 5, 10;
 }
-.edge path.highlight,
-.edge:hover path {
-    stroke: rgba(151, 23, 164, 0.6);
-    /* stroke-width: 14px; */
+form.settings {
+    padding: 20px;
 }
-.highlight #arrowhead,
-.edge:hover #arrowhead {
-    stroke-width: 3px;
-}
-.edge .label text {
-    stroke: none;
-    fill: #333;
-}
-.edge .label text,
-.legend text,
-text.dag-label {
-    font-family: "Ubuntu mono", "Droid Sans Mono", "Inconsolata", "Consolas", "Monospaced", monospace;
-}
-.chord-label {
-    font-size: 8px;
-    fill: #555;
-}
-.chord.focus {
-    stroke-width: 3px;
-    stroke: red;
-}
-text.go-name {
-    font-size: 10px;
-}
-text.go-name:hover {
-    opacity: 1;
-}
-.cp {
-    cursor: pointer;
-    opacity: 0;
-}
-path.highlight .label text,
-.edge:hover .label text {
-    font-size: 26px;
-    opacity: 1;
-}
-.edge:hover .cp {
-    opacity: 1;
-}
-path.force-link {
-}
-text.force-label {
-    cursor: pointer;
-}
-path.force-link.highlit {
-    stroke-width: 15px;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    /* stroke: rgba(218, 226, 23, 0.4); */
-    stroke: rgba(151, 23, 164, 0.6);
-}
-circle.force-term {
-    cursor: pointer;
-    stroke: white;
-    stroke-width: 1;
-}
-rect.root,
-circle.root {
-    fill: rgb(120, 31, 180);
-}
-circle.direct {
-    fill: red;
-}
-.legend text {
-    fill: #555;
+#chart {
+    border-right: 1px solid #e2e2e2;
 }
 
-.marked-terms .description .full-description {
-    display: none;
-}
-
-.ontology-table .scroll-container {
+.settings section .content {
+    max-height: 350px;
     overflow-y: auto;
-    position: relative;
-    right: 1em;
 }
+body, body > .row {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+}
+body {
+    height: 600px;
+}
+@media (min-width: 1000px) {
+    body {
+        height: 100%;
+        position: fixed;
+    }
+}
+
+.controls {
+    padding-top: 20px;
+}
+.controls select:focus {
+    box-shadow: 0 0 10px #1F8DE6;
+}
+.controls .root-term .title > a.current-root {
+    background: rgb(155, 188, 214);
+}
+.controls .sub-terms .content {
+    width: 100%;
+    overflow-y: auto;
+    max-height: 450px;
+}
+.controls .root-term .title.active {
+    background: #008CBA;
+    color: #ffffff;
+}
+.controls .accordion dl.tabs {
+    width: 100%;
+}
+.controls .accordion .tabs dd {
+    width: 50%;
+}
+.controls .accordion .tabs dd a {
+    padding: 0.5rem;
+}
+.controls .tabs dd.active a {
+    background-color: rgb(0, 140, 170);
+    color: #ffffff;
+}
+.sub-terms label .detail {
+    float: right;
+    position: relative;
+    display: block;
+    font-size: 0.8em;
+    font-style: italic;
+}
+.sub-terms label input {
+    margin-bottom: 0;
+}
+.sub-terms .tabs-content {
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+.high-level-term, .low-level-term {
+    padding: 5px 1em;
+    margin-bottom: 0.1rem;
+    border-bottom: 1px solid #E2E2E2;
+}
+.high-level-term:hover, .low-level-term:hover {
+    background: #e2e2e2;
+}
+

@@ -1,6 +1,7 @@
 dagre-d3 = require \dagre-d3
 d3 = require \d3
 Backbone = require \backbone
+
 {UniqueCollection} = require './unique-collection.ls'
 {key-code} = require './keycodes.ls'
 {can-reach-any, ancestors-of, get-rank, get-root} = require './graph-utils.ls'
@@ -25,6 +26,7 @@ export class DAG extends Backbone.View
         @get-node-class = opts?.get-node-class ? (-> null)
         @get-edge-class = opts?.get-edge-class ? (-> null)
         @get-roots = opts?.get-roots ? (.sinks!)
+        @get-ends = opts.get-ends ? (edge) -> map @node-models~key-fn, @edge-vec id, edge
         edge-props = opts?.edge-props ? <[source target]>
         @edge-vec = (f, edge) --> map f . edge~get, edge-props
         node-key = opts?.node-key ? (.id)
@@ -98,7 +100,7 @@ export class DAG extends Backbone.View
             e-sel    = @renderer.edge-roots!
 
             label  = @renderer.get-node-label!
-            normed = filter-term?.to-lower-case!
+            normed = String(filter-term ? '').to-lower-case!
             g      = @graph
             n-sel.classed \filtered, n-f =
                 | normed?.length => (nid) -> filter-term is nid or normed `within` label g.node nid
@@ -249,8 +251,7 @@ export class DAG extends Backbone.View
             g.add-node @node-models.key-for(node), node
 
         @edge-models.each (edge) ~>
-            ends = @edge-vec id, edge
-            [source, target] = map @node-models~key-fn, ends
+            [source, target] = @get-ends edge
             g.add-edge @edge-models.key-for(edge), source, target, edge
 
         @trigger \whole:graph, g # Let interested parties know what the full graph looks like.

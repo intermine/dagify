@@ -8,6 +8,7 @@ module.exports = class OntologyWidget extends Backbone.View
 
     (options) ->
         @dag = new DAG options
+        @controls = new Controls options
 
         # Delegate most stuff to the DAG component.
         @set-graph = @dag~set-graph
@@ -30,7 +31,7 @@ module.exports = class OntologyWidget extends Backbone.View
             ..set-element @$ '.ont-w-chart'
             ..render!
 
-        controls = new Controls
+        controls = @controls
             ..$el.append-to @$ '.ont-w-controls'
             ..wire-to-dag dag
             ..render!

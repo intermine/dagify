@@ -1,5 +1,6 @@
 Backbone = require \backbone
-{GOTerms} = require './go-terms.ls'
+_ = require 'underscore'
+{Terms} = require './go-terms.ls'
 {Obj, any, unique, map, pairs-to-obj, fold, first, intersection} = require 'prelude-ls'
 {get-root, ancestors-of, descendents-of} = require './graph-utils.ls'
 {RootTerm} = require './root-term.ls'
@@ -15,19 +16,20 @@ export class Controls extends Backbone.View
     tagName: \form
     className: \controls
 
-    initialize: ->
+    initialize: (options = {}) ->
+        @term-key = tk = options.term-key ? (.identifier)
+        @term-template = _.template options.term-template ? """<li><a><%- name %> (<%- identifier %>)</a></li>"""
         @state = new Backbone.Model
-        @top-terms = new GOTerms
-        @roots = new GOTerms
-        @direct-terms = new GOTerms
+        @top-terms = new Terms tk
+        @roots = new Terms tk
+        @direct-terms = new Terms tk
         @roots.on \add, @~insert-root
 
-    show-term-suggestion = (ul, term) ->
-        (.append-to ul) $ "<li><a>#{ term.escape \name } (#{ term.escape \identifier })</a></li>"
+    show-term-suggestion: (ul, term) -> (.append-to ul) $ @term-template term.toJSON!
 
-    select-term = (text-box, report, e, {item}) -->
+    select-term: (text-box, report, e, {item}) ~~>
         e.prevent-default!
-        term = item.get \identifier
+        term = @term-key item.toJSON!
         text-box.val term
         report term
 
@@ -57,21 +59,23 @@ export class Controls extends Backbone.View
         finder = @$ '.find'
         report = @~trigger
         source = @~suggest-terms
-        select = (-> finder.blur!) . select-term finder, report \chosen, _
-        focus  = select-term finder, report \filter, _
+
+        on-choice = @select-term finder, report \chosen, _
+        select = (-> finder.blur!) . on-choice
+        focus  = @select-term finder, report \filter, _
         ac = finder
                 |> (.autocomplete {source, select, focus})
                 |> (.data \ui-autocomplete)
-        ac._render-item = show-term-suggestion
+        ac._render-item = @~show-term-suggestion
 
     suggest-terms: ({term}, done) ->
-        current-id = @state.get(\currentRoot).get \identifier
+        current-id = @term-key @state.get(\currentRoot).toJSON!
         terms = @terms-for[current-id] ? []
-        re = new RegExp $.ui.autocomplete.escape-regex term
+        re = new RegExp $.ui.autocomplete.escape-regex(term), 'i'
         done [t for t in terms when any re~test, map t~get, <[identifier name]>]
 
     insert-root: (root) ->
-        id = root.get \identifier
+        id = @term-key root.toJSON!
         @root-views[id] = view = new RootTerm model: root, high-level-terms: @top-terms, low-level-terms: @direct-terms
 
         view.render!
