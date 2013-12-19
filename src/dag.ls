@@ -293,7 +293,9 @@ export class DAG extends Backbone.View
 
         align-attrs = @state.get \alignAttrs
         g.each-node (nid, nm) ->
-            if align-attrs and \attr is nm.get \nodeType
+            if nid in roots
+                nm.rank = \max
+            else if align-attrs and \attr is nm.get \nodeType
                 nm.rank = \min
             else
                 delete nm.rank
