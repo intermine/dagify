@@ -8,7 +8,11 @@ module.exports = class OntologyWidget extends Backbone.View
 
     (options) ->
         @dag = new DAG options
+
+        # Delegate most stuff to the DAG component.
         @set-graph = @dag~set-graph
+        @get-graph = @dag~get-graph
+        @dag.on \all, @~trigger
 
     HTML = """
         <div class="large-9 columns ont-w-chart"></div>
