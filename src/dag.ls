@@ -322,6 +322,7 @@ export class DAG extends Backbone.View
           super-draw-edge ...arguments
           edge-class = @get-edge-class @graph.edge eid
           sel.classed edge-class, true if edge-class?
+          sel.select-all('path').on \click, ~> @trigger 'click:edge', @graph.edge(eid), sel
           if @on-edge-click?
               sel.select-all('path').on \click, ~> @on-edge-click @graph, eid, sel
               sel.select-all('.edge-label').on \click, ~> @on-edge-click @graph, eid, sel
@@ -344,6 +345,7 @@ export class DAG extends Backbone.View
               .enter!
               .append \title
               .text (d) -> d
+            svg-node.on \click, ~> @trigger 'click:node', nid, node, svg-node
             if @on-node-click?
                 svg-node.on \click, ~> @on-node-click nid, node, svg-node
             else if @is-closable node
