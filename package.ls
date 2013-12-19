@@ -27,10 +27,11 @@ licenses:
 dev-dependencies:
     'd3': '~3.3.9'
     'dagre-d3': 'alexkalderimis/dagre-d3'
-    "imjs": '~3.0.2'
+    "imjs": '~3.2.1'
     'zepto-browserify': '1.0.0'
     'prelude-ls': "~1.0.3"
     'backbone': '~1.1.0'
+    'underscore': '~1.5.x'
     'LiveScript': '~1.2.0'
     'uglify-js': '~2.2.5'
     'mocha': '~1.8.2'

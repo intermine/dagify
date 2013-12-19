@@ -4,7 +4,6 @@ Q = require \q
 
 OntologyWidget = require './ontology-widget.ls'
 
-
 # Mock results.
 results-a = require '../data/result_0.json'
 results-b = require '../data/result_1-edges.json'
@@ -18,7 +17,7 @@ Promise = do ->
     bind = (ma, f) --> Q(ma).then f
     {unit, bind, lift}
 
-const dag-opts =
+dag-opts =
     rank-scale: [0.95, 0.8]
     node-key: (.identifier)
     edge-labels: <[relationship]>

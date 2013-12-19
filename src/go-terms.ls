@@ -1,6 +1,6 @@
 {UniqueCollection} = require './unique-collection.ls'
 
-export class GOTerms extends UniqueCollection
+export class Terms extends UniqueCollection
 
-    -> super [], key-fn: (.identifier)
+    (keyFn = (.identifier)) -> super [], key-fn: keyFn
 
