@@ -323,7 +323,8 @@ export class DAG extends Backbone.View
           super-draw-edge ...arguments
           edge-class = @get-edge-class @graph.edge eid
           sel.classed edge-class, true if edge-class?
-          sel.select-all('path').on \click, ~> @trigger 'click:edge', @graph.edge(eid), sel
+          sel.select-all('path').on \click, ~> @trigger 'click:edge', @graph, eid, sel
+          sel.select-all('.edge-label').on \click, ~> @trigger 'click:edge', @graph, eid, sel
           if @on-edge-click?
               sel.select-all('path').on \click, ~> @on-edge-click @graph, eid, sel
               sel.select-all('.edge-label').on \click, ~> @on-edge-click @graph, eid, sel
