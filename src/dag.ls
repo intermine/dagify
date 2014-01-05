@@ -351,14 +351,15 @@ export class DAG extends Backbone.View
               .text (d) -> d
 
             svg-node.on \click, ~> @trigger 'click:node', nid, node, svg-node
-            if @on-node-click?
-                svg-node.on \click, ~> @on-node-click nid, node, svg-node
-            else if @is-closable node
-                svg-node.on \click, ~>
-                    node.set nonebelow: not node.get \nonebelow
-                    svg-node.classed \nonebelow, node.get \nonebelow
             nc = @get-node-class node
             svg-node.classed nc, true if nc?
+
+        @on \click:node, (nid, node, svg-node) ~>
+            if @on-node-click?
+                @on-node-click nid, node, svg-node
+            else if @is-closable node
+                node.set nonebelow: not node.get \nonebelow
+                svg-node.classed \nonebelow, node.get \nonebelow
 
         @renderer
 

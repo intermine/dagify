@@ -38,6 +38,7 @@ function main
 
     widget = new OntologyWidget dag-opts
         ..set-element document.get-element-by-id \ontology-widget
+        ..on \all, console~log
         ..render!
 
     get-graph-for flymine, symbol: \cdc2, 'organism.taxonId': 7227
