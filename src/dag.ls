@@ -349,6 +349,7 @@ export class DAG extends Backbone.View
               .enter!
               .append \title
               .text (d) -> d
+
             svg-node.on \click, ~> @trigger 'click:node', nid, node, svg-node
             if @on-node-click?
                 svg-node.on \click, ~> @on-node-click nid, node, svg-node
