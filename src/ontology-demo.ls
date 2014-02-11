@@ -9,7 +9,7 @@ results-a = require '../data/result_0.json'
 results-b = require '../data/result_1-edges.json'
 results-c = require '../data/result_2-nodes.json'
 
-FLYMINE = 'http://beta.flymine.org/beta/service'
+FLYMINE = 'http://www.flymine.org/query/service'
 
 Promise = do ->
     unit = (a) -> Q a
