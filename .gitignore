@@ -1,6 +1,5 @@
 *.js
 dist
 node_modules
-lib
 jstl
 package.json
