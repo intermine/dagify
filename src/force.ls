@@ -1,10 +1,11 @@
 {link-stroke, term-color, draw-root-labels, term-palette, relationship-palette, colour-filter, link-fill, mv-towards, draw-source-legend, draw-relationship-legend, draw-root-labels, centre-and-zoom} = require './svg'
 {mark-subtree, relationship-test} = require './util'
-{minimum, maximum, even, mean, reject, unique, join, abs, cos, sin, Obj, sum, any, sort-by, map, fold, filter, each, ln} = require \prelude-ls
+{minimum, maximum, max, min, even, mean, reject, unique, join, abs, sqrt, cos, sin, Obj, sum, any, sort-by, map, fold, filter, each, ln} = require \prelude-ls
 
 is-root = (.is-root)
 to-radians = (* Math.PI / 180)
 get-r = (.radius!)
+half = (/ 2)
 count-by = (f, xs) --> fold ((sum, x) -> sum + if f x then 1 else 0), 0, xs
 
 link-opacity =
@@ -15,10 +16,22 @@ link-opacity =
 
 min-ticks = 20
 
+cartesian-distance = let f = sqrt . sum . map (^ 2)
+    (a, b) -> f [a.x - b.x, a.y - b.y]
+
+gravitate-towards = ({x, y}:target, node) ->
+    speed = min 1, 1 / cartesian-distance target, node
+    mv-towards speed, {x, y}, node
+
+anti-grav = ({x, y}:target, node) -->
+    speed = half min 1, 1 / cartesian-distance target, node
+    mv-towards 0 - speed, {x, y}, node
+
 stratify = (state) ->
     {dimensions, graph, zoom} = state.toJSON!
     current-font-size = Math.min 40, 20 / zoom
     roots = sort-by (.x), filter is-root, graph.nodes
+    each console~log << (.x), roots
     leaves = sort-by (.x), filter (-> it.is-direct and it.is-leaf), graph.nodes
     surface = minimum [0] ++ map (.y), graph.nodes
     width-range = d3.scale.linear!
@@ -37,23 +50,25 @@ stratify = (state) ->
 
     roots.for-each (root, i) ->
         root.fixed = false
-        mv-towards 0.01, {y: (surface - get-r root), x: root.x}, root #width-range i}, root
+        #mv-towards 0.01, {y: (surface - get-r root), x: root.x}, root #width-range i}, root
+        gravitate-towards {y: (surface - get-r root), x: root.x}, root
 
     for n in graph.nodes when (not n.is-root) and (n.y + get-r n) < surface
-        mv-towards 0.001, {x: n.root.x, y: dimensions.h}, n
+        #mv-towards 0.001, {x: n.root.x, y: dimensions.h}, n
+        gravitate-towards {x: n.root.x, y: dimensions.h}, n
 
     leaves.for-each (n, i) ->
         speed = if n.y < (dimensions.h / 2) then 0.05 else 0.005
         if n.y < dimensions.h * 0.9
-            mv-towards speed, {x: (width-range i), y: dimensions.h * 0.9}, n
-        if n.y >= dimensions.h * 0.85
+            #mv-towards speed, {x: (width-range i), y: dimensions.h * 0.9}, n
+            gravitate-towards {x: (width-range i), y: dimensions.h * 0.9}, n
+        if n.y >= dimensions.h * 0.88
             n.y = dimensions.h * 0.9 + (current-font-size * 1.1 * i)
 
 centrify = (state) ->
-    {graph, graph:{w, h}} = state.toJSON!
+    {graph, dimensions:{w, h}} = state.toJSON!
     roots = sort-by (.y), filter is-root, graph.nodes
     mean-d = mean map (* 2) << get-r, roots
-    half = (/ 2)
 
     # Put root nodes under a centripetal force.
     if roots.length is 1
@@ -63,21 +78,16 @@ centrify = (state) ->
             goal =
                 x: half w
                 y: (half h) - (mean-d * roots.length / 2) + (mean-d * i)
-            mv-towards 0.05, goal, n
+            #mv-towards 0.05, goal, n
+            gravitate-towards goal, n
 
     # Put leaf nodes under a centrifugal force. Must be very faint to avoid reaching terminal
     # velocity.
     centre =
         x: half w
         y: half h
-    max-h = maximum map (.steps-from-leaf), graph.nodes
-    for leaf in graph.nodes when not is-root leaf
-        base-speed = -0.0003
-        speed =
-            | leaf.is-leaf => base-speed
-            | max-h => base-speed * (1 - leaf.steps-from-leaf * 1 / max-h)
-            | otherwise => 0
-        mv-towards speed, centre, leaf
+    # max-h = maximum map (.steps-from-leaf), graph.nodes
+    each (anti-grav centre), filter (.is-leaf), graph.nodes
 
 unfix = !(state) -> state.get \graph |> (.nodes) |> filter is-root |> each (<<< fixed: false)
 

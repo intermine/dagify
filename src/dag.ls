@@ -1,564 +1,434 @@
-{term-palette, get-min-max-size, link-fill, draw-root-labels, relationship-palette, mv-towards, brighten, BRIGHTEN, colour-filter, term-color, link-stroke, centre-and-zoom, draw-relationship-legend, draw-source-legend} = require './svg'
-{to-xywh, within, to-ltrb, relationship-test} = require './util'
-{sort-by, unique, id, reverse, reject, each, mean, fold, sort, join, filter, map, any} = require \prelude-ls
+dagre-d3 = require \dagre-d3
+d3 = require \d3
+Backbone = require \backbone
 
-DAGRE = require '../vendor/dagre'
+{UniqueCollection} = require './unique-collection.ls'
+{key-code} = require './keycodes.ls'
+{can-reach-any, ancestors-of, get-rank, get-root} = require './graph-utils.ls'
 
-node-padding = 20px
-len = (.length)
+{union, difference, maximum, minimum, filter, max, pairs-to-obj, split, id, any, each, find, sort-by, last, join, map, is-type, all, first} = require 'prelude-ls'
 
-rect-color = BRIGHTEN . term-color
+class CanBeHidden extends Backbone.Model
 
-to-node-id = (\node +) << (.replace /:/g, \_) << (.id)
+    defaults: {hidden: false, nonebelow: false, noneabove: false}
 
-do-update = (group) ->
+    toggle: (prop) -> @set prop, not @get prop
 
-    group.select-all \circle.cp
-        .attr \r, 10
-        .attr \cx, (.x)
-        .attr \cy, (.y)
+export class DAG extends Backbone.View
 
-    label-g = group.select-all \g.label
+    initialize: (opts = {}) ->
+        @rank-scale = opts.rank-scale ? [1, 1]
+        @node-labels = opts.node-labels ? <[name value label class]>
+        @edge-labels = opts.edge-labels ? <[name value label class]>
+        @is-closable = opts?.is-closable ? (node) -> true
+        @on-node-click = opts?.on-node-click
+        @on-edge-click = opts?.on-edge-click
+        @get-node-class = opts?.get-node-class ? (-> null)
+        @get-edge-class = opts?.get-edge-class ? (-> null)
+        @get-roots = opts?.get-roots ? (.sinks!)
+        @get-ends = opts.get-ends ? (edge) -> map @node-models~key-fn, @edge-vec id, edge
+        edge-props = opts?.edge-props ? <[source target]>
+        @edge-vec = (f, edge) --> map f . edge~get, edge-props
+        node-key = opts?.node-key ? (.id)
+        edge-key = opts?.edge-key ? (e) -> join \-, map node-key . (e.), edge-props
+        @node-models = new UniqueCollection [], key-fn: node-key
+        @node-models.model = CanBeHidden
+        @edge-models = new UniqueCollection [], key-fn: edge-key
+        @state = new Backbone.Model do
+            zoom: 1
+            rankDir: \BT
+            hidden-classes: []
+            hidden-paths: []
+            translate: [20, 20]
+            duration: 0ms
+            root-filter: (g, x) --> true
 
-    label-g
-        .attr \dx, ({dagre: {points}}) -> mean map (.x), points
-        .attr \dy, ({dagre: {points}}) -> mean map (.y), points
-        .attr \width, (.width)
-        .attr \height, (.height)
-        .attr \transform, ({dagre: {points}, bbox}) ->
-            x = mean map (.x), points
-            y = mean map (.y), points
-            "translate(#{ x },#{ y })"
+        @set-up-listeners!
 
-invert-layout = (dimensions, nodes, edges) ->
-    y-stats = get-min-max-size (.dagre.y), nodes
-    invert-scale = d3.scale.linear!
-        .domain [y-stats.min, y-stats.max]
-        .range [dimensions.h * 0.9, 0]
-    invert-node = invert-scale . (.dagre.y)
-    invert-points = reverse << map ({y}:pt) -> pt <<< y: invert-scale y
-    for n in nodes
-        n.dagre.y = invert-node n
-    for e in edges
-        e.dagre.points = invert-points e.dagre.points
+    set-root-filter: (f) -> @state.set \rootFilter, (g, nid) --> f g.node(nid).toJSON!, g
 
-separate-colliding = (left, right) ->
-    [pt-a, pt-b] = map (to-xywh << (.bounds)), [left, right]
-    speed = 0.1
-    mv-towards -speed, pt-a, pt-b unless right.is-centre
-    mv-towards -speed, pt-b, pt-a unless left.is-centre
-    left.bounds <<< to-ltrb pt-a
-    right.bounds <<< to-ltrb pt-b
+    within = (target, search-space) ->
+        ~String(search-space).to-lower-case!index-of target
 
-de-dup = (f) -> fold ((ls, e) -> if (any (is f e), map f, ls) then ls.slice! else ls ++ [e]), []
-to-combos = de-dup (join \-) << sort << (map (.id))
+    add-centre = (dims) ->
+        dims.cx = dims.width / 2 + dims.left
+        dims.cy = dims.height / 2 + dims.top
+        dims
 
-get-overlapping = (things) ->
-    to-combos [ [t, tt] for t in things for tt in things when t isnt tt and overlaps t, tt]
+    pos-info = add-centre . (.get-bounding-client-rect!) . first . first
 
-explodify = (highlit, i, rounds-per-run, max-rounds, done) ->
-    collisions = get-overlapping highlit
-    next-break = i + rounds-per-run
+    zoom-to = (new-zoom, [dx, dy]) ->
+        state = @state
+        dz = @zoom
+        [x, y] = state.get \translate
+        scale  = state.get \zoom
+        {cx, cy} = @get-el-dims!
+        [tx, ty] = [(cx - x + dx) / scale, (cy - y + dy) / scale]
+        [lx, ly] = [tx * new-zoom + x, ty * new-zoom + y]
+        new-translate = [x + cx - lx, y + cy - ly]
+        dz.scale new-zoom
+        dz.translate new-translate
 
-    while collisions.length and i++ < max-rounds and i < next-break
-        for [left, right] in collisions
+        d3.transition!
+            .duration 750ms # @state.get \duration
+            .call dz~event
 
-            separate-colliding left, right
+    zoom-to: (nid) ->
+        return unless @renderer?
+        el-dims = @get-el-dims!
+        b-rect = pos-info @renderer.node-roots!.filter (is nid)
+        [dx, dy] = [b-rect[dim] - el-dims[dim] for dim in <[ cx cy ]>]
+        return zoom-to.call @, 0.9, [dx - b-rect.width, dy]
 
-        collisions = get-overlapping highlit
+    set-up-listeners: ->
+        @state.on \change:translate, (s, current-translation) ~>
+            @zoom?.translate current-translation
+            @g.attr \transform, "translate(#{ current-translation }) scale(#{ s.get \zoom })"
 
-    if collisions.length and i < max-rounds
-        done!
-        process.next-tick -> explodify highlit, i, rounds-per-run, max-rounds, done
-    else
-        console.log "#{ collisions.length } collisions left after #{ i } rounds"
-        done!
+        @state.on \change:zoom, (s, current-zoom) ~>
+            @zoom?.scale current-zoom
+            @g.attr \transform, "translate(#{ s.get(\translate) }) scale(#{ current-zoom })"
 
-add-labels = (selection) ->
+        @state.on \change:rankDir, @~update-graph
+        @state.on 'change:alignAttrs change:hideAttrs change:hiddenClasses change:hiddenPaths', ~>
+            @graph = null
+            @state.set \duration, 350ms
+            @update-graph!
 
-    label-g = selection.append \g
-        ..attr \class, \label
-        ..append \rect
-        ..append \text
+        @state.on 'change:filter', (s, filter-term) ~>
+            n-sel    = @renderer.node-roots!
+            e-sel    = @renderer.edge-roots!
 
-    label-g.each (d) ->
-        d.bbox = @getBBox!
-        if d.label?.length
-            d.width = d.bbox.width + 2 * node-padding
-            d.height = d.bbox.height + 2 * node-padding
+            label  = @renderer.get-node-label!
+            normed = String(filter-term ? '').to-lower-case!
+            g      = @graph
+            n-sel.classed \filtered, n-f =
+                | normed?.length => (nid) -> filter-term is nid or normed `within` label g.node nid
+                | otherwise      => -> false
+            e-sel.classed \filtered, (eid) -> any n-f, g.incident-nodes eid
+
+            @fit-to-bounds! unless filter-term?
+
+        on-graph-change = ~>
+            @graph = null
+            @state.set \duration, 350ms
+
+        @node-models.on 'add reset', on-graph-change
+        @edge-models.on 'add reset', on-graph-change
+        @node-models.on 'change:nonebelow change:hidden change:noneabove', (m, v, {batch} = {}) ~>
+            return if batch
+            @graph = null
+            @state.set \duration, 350ms
+            @update-graph!
+
+        @on \redraw, ~>
+            @graph = null
+            @update-graph!
+
+        shift = (dx, dy, event) ~~>
+            [x, y] = @state.get \translate
+            @state.set translate: [x + dx, y + dy]
+
+        # Translation adjustment gratefully taken from:
+        #   http://bl.ocks.org/linssen/7352810 
+        zoom = (factor, event) ~~>
+            scale  = @state.get \zoom
+            zoom-to.call @, (scale + factor), [0, 0]
+
+        move = pairs-to-obj [
+            [key-code.UP, shift 0, 100],
+            [key-code.DOWN, shift 0, -100],
+            [key-code.LEFT, shift 100, 0],
+            [key-code.RIGHT, shift -100, 0],
+            [key-code.MINUS, zoom -0.2],
+            [key-code.PLUS, zoom 0.2],
+            [key-code.HOME, @~fit-to-bounds]
+        ]
+
+        $(window).on \keyup, (e) -> move[e.key-code]?! unless $(e.target).is \input
+
+
+    get-el-dims: ->
+        padding = 20px
+        el-dims = pairs-to-obj [[name, @$el[name]! - padding * 2] for name in <[ height width ]>]
+            ..top = padding
+            ..bottom = ..height + padding
+            ..left = padding
+            ..cx = ..width / 2 + ..left
+            ..cy = ..height / 2 + ..top
+            ..right = ..width + padding
+
+    get-node-dims: -> pos-info @g
+
+    contains = (outer, inner) ->
+        inner.left >= outer.left
+          and inner.right <= outer.right
+          and inner.top >= outer.top
+          and inner.bottom <= outer.bottom
+
+    fit-to-bounds: (recurrance = 0) ->
+        node-bounds = @get-node-dims!
+        el-dims = @get-el-dims!
+
+        return if recurrance and el-dims `contains` node-bounds or recurrance > 10
+
+        {zoom, translate: [x, y]} = @state.toJSON!
+
+        # Get the most egregiously wrong ratio
+        [dw, dh] = [node-bounds[prop] - el-dims[prop] for prop in <[width height]>]
+        ratio =
+            | dw > dh   => el-dims.width / node-bounds.width
+            | otherwise => el-dims.height / node-bounds.height
+
+        new-zoom = zoom * ratio
+        new-x = x * new-zoom
+        new-y = y * new-zoom
+
+        # Apply the scale changes.
+        @zoom.scale(new-zoom).translate([new-x, new-y]).event @g
+        # @state.set zoom: new-zoom, translate: [new-x, new-y]
+
+        ## TODO: Is there a one step way to calculate this??
+
+        node-bounds = @get-node-dims! # Get the recalculated dimensions, for centering
+
+        [nx, ny] = [node-bounds[size] / 2 + node-bounds[offset] for [size, offset] in [<[width left]>, <[height top]>]]
+
+        dx = el-dims.cx - nx
+        dy = el-dims.cy - ny
+
+        new-translation = [new-x + dx, new-y + dy]
+        # @state.set translate: new-translation
+        @zoom.translate(new-translation).event @g
+
+        set-timeout (~> @fit-to-bounds recurrance + 1), 10ms
+
+    set-graph: ({nodes, edges}) ->
+        @node-models.reset nodes
+        @edge-models.reset edges
+        @state.set \duration, 700ms
+        @update-graph!
+
+    add-node: (node) ->
+        # Preserve uniqueness
+        @node-models.add node
+
+    add-edge: (edge) ->
+        # Preserve uniqueness
+        @edge-models.add edge
+
+    set-layout: (layout) -> @state.set \rankDir, layout
+
+    to-string: -> """[views/dag/DAG #{ @cid }]"""
+
+    descale: -> 1 / @state.get \zoom
+
+    marker-end: ->
+        if @state.get \direction is \LR then 'url(#Triangle)' else 'url(#TriangleDown)'
+
+    node-is-hidden = ({hide-attrs, hidden-classes, hidden-paths}, black-list, nm) -->
+        node = nm.toJSON!
+        cls = node.class
+        pth = node.path
+        nt = node.node-type
+        node.hidden or (nm in black-list)
+                    or (hide-attrs and nt is \attr)
+                    or (cls in hidden-classes)
+                    or (any pth~match, hidden-paths)
+
+    get-graph: ->
+        return @graph if @graph?
+        start = new Date().get-time!
+        self = @
+
+        {hidden-classes, hidden-paths} = @state.toJSON!
+
+        g = new dagre-d3.Digraph
+
+        @node-models.each (node) ~>
+            @trigger \add:class, node.get \class
+            @trigger \add:path, {path: node.get \path} if node.has \path
+            g.add-node @node-models.key-for(node), node
+
+        @edge-models.each (edge) ~>
+            [source, target] = @get-ends edge
+            g.add-edge @edge-models.key-for(edge), source, target, edge
+
+        @trigger \whole:graph, g # Let interested parties know what the full graph looks like.
+
+        roots = filter (@state.get(\rootFilter) g), @get-roots g
+
+        # Reduce to the current subgraph.
+        g = g.filter-nodes can-reach-any g, roots
+
+        unwanted-kids = [n for n in g.nodes!
+                            when g.out-edges(n).length # this is required. No idea why
+                            and all (-> g.node(it).get \nonebelow), g.successors(n)]
+        unwanted-parents = [p for n in g.nodes!
+                              when g.node(n).get \noneabove
+                                for p in [n] ++ ancestors-of g, n
+                                when g.out-edges(p).length]
+
+        protected-parents = if unwanted-parents.length is 0
+            []
         else
-            d.width = d.height = 0
+            [p for n in g.nodes!
+                      when g.node(n).get \direct
+                          and not g.node(n).get \noneabove
+                      for p in [n] ++ ancestors-of g, n]
 
-    label-g.select \text
-        .attr \text-anchor, \left
-        .append \tspan
-            .attr \dy, \1em
-            .text (.label)
+        unwanted = union unwanted-kids, unwanted-parents
+        black-list = map g~node, unwanted `difference` protected-parents
 
-    label-g #.select \rect
-        .attr \dx, ({dagre: {points}}) -> mean map (.x), points
-        .attr \dy, ({dagre: {points}}) -> mean map (.y), points
-        .attr \width, (.width)
-        .attr \height, (.height)
+        is-hidden = node-is-hidden @state.toJSON!, black-list
 
-    label-g.attr \transform, ({dagre: {points}}) ->
-        x = mean map (.x), points
-        y = mean map (.y), points
-        "translate(#{ x },#{ y })"
+        # Now trim the graph down, first any user configured filter
+        g = g.filter-nodes ((nid) ~> @node-filter g.node(nid).toJSON!, nid, g) if @node-filter?
 
-only-marked = (nodes, edges) ->
-    nodes: filter (.marked), nodes
-    edges: filter (.marked) << (.source), edges
+        # Then standard filter.
+        g = g.filter-nodes (nid) -> not is-hidden g.node(nid)
 
-mark-reachable = (node) ->
-    node.is-focus = true
-    queue = [node]
-    moar = (n) -> reject (is n), map (.target), n.edges
-    while n = queue.shift!
-        n.marked = true
-        each queue~push, moar n
+        # and once more, getting rid of now stranded sections.
+        g = g.filter-nodes can-reach-any g, roots
 
-get-node-drag-pos = (pos-prop) -> -> d3.event[pos-prop]
+        align-attrs = @state.get \alignAttrs
+        g.each-node (nid, nm) ->
+            if nid in roots
+                nm.rank = \max
+            else if align-attrs and \attr is nm.get \nodeType
+                nm.rank = \min
+            else
+                delete nm.rank
 
-do-line = d3.svg.line!
-        .x (.x)
-        .y (.y)
-        .interpolate \basis
+        console.debug "Graph construction took #{ (new Date().get-time! - start) / 1e4ms } secs"
+        console.debug "Order: #{ g.order! }, size: #{ g.size! }"
+        return @graph = g
 
-calculate-spline = (dir, {source: {dagre:source}, target:{dagre:target}, dagre: {points}}) -->
-    p0 =
-        | dir is \LR => x: (source.x + source.width / 2), y: source.y
-        | otherwise => x: target.x, y: (target.y + target.height / 2)
-    p1 =
-        | dir is \LR => x: (source.x + source.width / 2 + 10px), y: source.y
-        | otherwise => x: target.x, y: (target.y + 10px + target.height / 2)
-    pNminus1 =
-        | dir is \LR => x: (target.x - 15px - target.width / 2), y: target.y
-        | otherwise => x: source.x, y: (source.y - 15px - source.height / 2)
-    pN =
-        | dir is \LR => x: (target.x - target.width / 2), y: target.y
-        | otherwise => x: source.x, y: (source.y - source.height / 2)
-    ps = [p0, p1] ++ points ++ [pNminus1, pN]
+    get-renderer: ->
 
-    do-line if dir is \LR then ps else reverse ps
+        layout = dagre-d3.layout!rank-dir @state.get \rankDir
+        graph  = @get-graph!
 
-translate-edge = (svg, e, dx, dy) -->
-    for p in e.dagre.points
-        p.x = p.x + dx
-        p.y = p.y + dy
+        node-labels = @node-labels
+        edge-labels = @edge-labels
+        labeler = (labels, model) --> (model.get find model~has, labels) ? ''
+        @renderer = new dagre-d3.Renderer
+            ..get-node-label labeler node-labels
+            ..get-edge-label labeler edge-labels
+            ..node-join-key (d) -> d
+            ..edge-join-key (d) -> d
+            ..layout layout
+            ..graph graph
 
-respond-to-marking = ->
-    return if @state.get(\view) isnt \Dag
-    filtered = only-marked @nodes, @edges
-    if filtered.nodes.length
-        @re-render filtered <<< {@reset}
-    else
-        @reset!
+        super-draw-edge = @renderer.draw-edge!
+        @renderer.draw-edge (g, eid, sel) ~>
+          super-draw-edge ...arguments
+          edge-class = @get-edge-class @graph.edge eid
+          sel.classed edge-class, true if edge-class?
+          sel.select-all('path').on \click, ~> @trigger 'click:edge', @graph, eid, sel
+          sel.select-all('.edge-label').on \click, ~> @trigger 'click:edge', @graph, eid, sel
+          if @on-edge-click?
+              sel.select-all('path').on \click, ~> @on-edge-click @graph, eid, sel
+              sel.select-all('.edge-label').on \click, ~> @on-edge-click @graph, eid, sel
 
-render-dag = (state, {reset, nodes, edges}) ->
+        super-draw-node = @renderer.draw-node!
+        @renderer.draw-node (g, nid, svg-node) ~>
+            super-draw-node g, nid, svg-node
+            labeler = @renderer.get-node-label!
+            node = @graph.node nid
+            svg-node.classed \nonebelow, node.get \nonebelow
+            rank = get-rank g, nid
 
-    svg = d3.select state.get \svg
+            svg-node.select-all \.label-bkg
+                    .attr \opacity, @opacity-scale rank
 
-    svg.select-all(\g).remove!
+            svg-node.classed "rank-#{ rank }", true
+            title = labeler node
+            svg-node.select-all \title
+              .data [title]
+              .enter!
+              .append \title
+              .text (d) -> d
 
-    dimensions = state.get \dimensions
+            svg-node.on \click, ~> @trigger 'click:node', nid, node, svg-node
+            nc = @get-node-class node
+            svg-node.classed nc, true if nc?
 
-    state.off 'nodes:marked', respond-to-marking
+        @on \click:node, (nid, node, svg-node) ~>
+            if @on-node-click?
+                @on-node-click nid, node, svg-node
+            else if @is-closable node
+                node.set nonebelow: not node.get \nonebelow
+                svg-node.classed \nonebelow, node.get \nonebelow
 
-    svg
-       .attr \width, dimensions.w
-       .attr \height, dimensions.h
-       .call draw-relationship-legend state, relationship-palette
-       .call draw-root-labels {nodes}, dimensions
-       .call draw-source-legend state, term-palette
+        @renderer
 
-    svg-group = svg.append(\g).attr \transform, 'translate(5, 5)'
+    render: ->
+        @$el.append """
+            <svg>
+                <filter id="dropshadow" height="130%">
+                    <feGaussianBlur in="SourceAlpha" stdDeviation="3"/> <!-- stdDeviation is how much to blur -->
+                    <feOffset dx="2" dy="2" result="offsetblur"/> <!-- how much to offset -->
+                    <feMerge> 
+                        <feMergeNode/> <!-- this contains the offset blurred image -->
+                        <feMergeNode in="SourceGraphic"/> <!-- this contains the element that the filter is applied to -->
+                    </feMerge>
+                </filter>
+                <!-- a transparent grey glow with no offset -->
+                <filter id="glow">
+                    <!-- Returns a green colour -->
+                    <feColorMatrix type="matrix" values=
+                                "0 0 0 0 0
+                                 1 1 1 1 0
+                                 0 0 0 0 0
+                                 0 0 0 1 0"/>
+                    <feGaussianBlur stdDeviation="5" result="coloredBlur"/>
+                    <feMerge>
+                        <feMergeNode in="coloredBlur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                </filter>
+                <g transform="translate(20,20)"/>
+            </svg>
+        """
 
-    update = -> do-update svg-group
-    spline = calculate-spline state.get \dagDirection
+        @svg = d3.select 'svg'
+        @g = d3.select 'svg g'
 
-    re-render = -> render-dag state, it
+        @zoom = d3.behavior.zoom!
+            .scale @state.get \zoom
+            .translate @state.get \translate
+            .on \zoom, ~> @state.set zoom: d3.event.scale, translate: d3.event.translate.slice!
 
-    reset ?= -> state.set \graph, {nodes, edges} if state.get(\view) is \Dag
-    get-descale = -> 1 / state.get \zoom
+        @svg.call @zoom
 
-    state.on \nodes:marked, respond-to-marking, {state, reset, re-render, nodes, edges}
+        @get-renderer!run @g
 
-    console.log "Rendering #{ len nodes } nodes and #{ len edges } edges"
+        return this
 
-    svgBBox = svg.node!getBBox!
+    update-graph: ->
 
-    mv-edge = translate-edge svg
+        return unless @renderer? # Not rendered for first time yet.
+        duration = @state.get \duration
+        layout = dagre-d3.layout!rank-dir @state.get \rankDir
+        graph = @get-graph!
 
-    svg-group.select-all('*').remove!
+        max-rank = maximum map (get-rank graph), graph.nodes!
 
-    svg-edges = svg-group.select-all 'g .edge'
-        .data edges
-
-    edges-enter = svg-edges.enter!
-        .append \g
-        .attr \id, -> (it.source.id + it.label + it.target.id).replace /:/g, \_
-        .attr \class, \edge
-
-    svg-edges.exit!remove!
-
-    svg-nodes = svg-group.select-all 'g .node'
-        .data nodes
-
-    nodes-enter = svg-nodes.enter!
-        .append \g
-        .attr \class, \node
-        .attr \id, to-node-id
-
-    svg-nodes.exit!remove!
-
-    nodes-enter.on \click, (node) ->
-        was-filtered = node.is-focus
-        (.unmark!) state.get \all
-        if was-filtered
-            console.log "Resetting"
-            reset!
+        @opacity-scale = if not max-rank
+            id
         else
-            mark-reachable node
-            filtered = only-marked nodes, edges
-            re-render filtered <<< {reset}
-        state.trigger \nodes:marked
-
-    state.on \relationship:highlight, (link) ->
-        scale = get-descale!
-        test = relationship-test link, true
-        node-test = (.edges) >> any test
-        col-filt = colour-filter test
-        nodes-enter
-            .classed \highlight, if link then node-test else (-> false)
-            .transition!
-            .duration 100ms
-            .attr \opacity, (node) -> if node-test node then 1 else 0.5
-
-        edges-enter
-            .transition!
-            .duration 100ms
-            .attr \opacity, (e) -> if test e then 0.8 else 0.2
-            .attr \stroke, (e) -> link-stroke e |> col-filt e
-
-    state.on \term:highlight, (node) ->
-        scale = get-descale!
-        nodes-enter
-            .classed \highlight, (is node)
-            .attr \opacity, (datum) -> if (not node) or (datum is node) then 1 else 0.5
-            .attr \transform, ->
-                | it is node => "translate(#{ it.dagre.x },#{ it.dagre.y }), scale(#{ scale })"
-                | otherwise => "translate(#{ it.dagre.x },#{ it.dagre.y })"
-
-    state.on \source:highlight, (sources) ->
-        pattern = new RegExp sources
-        test = pattern~test << (join \-) << (.sources)
-        scale = within 2, 1, get-descale!
-        nodes-enter
-            .classed \highlight, test
-            .attr \opacity, -> if (not sources) or (test it) then 1 else 0.5
-            .attr \transform, ->
-                | test it => "translate(#{ it.dagre.x },#{ it.dagre.y }), scale(#{ scale })"
-                | otherwise => "translate(#{ it.dagre.x },#{ it.dagre.y })"
-
-
-    marker-end = if state.get(\dagDirection) is \LR then 'url(#Triangle)' else 'url(#TriangleDown)'
-    #   .attr \marker-end, marker-end
-
-    edges-enter.append \path
-        .attr \stroke-width, 5px
-        .attr \opacity, 0.8
-        .attr \stroke, link-stroke
-
-    rects = nodes-enter.append \rect
-
-    #nodes-enter.append \title
-    #    .text (.label)
-
-    drag-cp = d3.behavior.drag!
-        .on \drag, (d) ->
-            d.y += d3.event.dy
-            mv-edge d.parent, d3.event.dx, 0
-            d3.select(\# + d.parent.dagre.id).attr \d, spline
-
-    line-wrap = (str) ->
-        buff = ['']
-        max-ll = 25
-        for word in str.split ' '
-            if buff[* - 1].length + word.length + 1 > max-ll
-                buff.push ''
-            buff[* - 1] += ' ' + word
-        map (.substring 1), buff
-
-    labels = nodes-enter.append \text
-        .attr \class, \dag-label
-        .attr \text-anchor, \middle
-        .attr \x, 0
-        .classed \direct, (.is-direct)
-
-    labels.each (n) ->
-        text = line-wrap n.label
-        el = d3.select @
-        for line in text
-            el.append \tspan
-                .text line
-                .attr \dy, \1em
-                .attr \x, 0
-        bbox = @getBBox!
-        n.bbox = bbox
-        n.width = bbox.width + 2 * node-padding
-        n.height = bbox.height + 2 * node-padding
-
-    rects
-        .attr \class, ({sources}) -> join ' ', [ \dag-term ] ++ sources
-        .attr \width, (.width)
-        .attr \height, (.height)
-        .attr \x, (1 -) << (/ 2) << (.width)
-        .attr \y, (1 -) << (/ 2) << (.height)
-        .attr \fill, rect-color
-        .attr \opacity, 0.8
-        .classed \focus, (.is-focus)
-        .classed \direct, (.is-direct)
-        .classed \root, (.is-root)
-
-    labels
-        .attr \x, -> -it.bbox.width
-        .attr \y, -> -it.bbox.height / 2
-
-    dagre.layout!
-        .nodeSep 50
-        .edgeSep 50
-        .rankSep 75
-        .rankDir state.get(\dagDirection)
-        .nodes nodes
-        .edges edges
-        .debugLevel 1
-        .run!
-
-    if state.get(\dagDirection) isnt \LR
-        invert-layout state.get(\dimensions), nodes, edges
-
-    # Apply the layout
-    do apply-layout = ->
-        nodes-enter.attr \transform, -> "translate(#{ it.dagre.x },#{ it.dagre.y })"
-
-    zoom = d3.behavior.zoom!
-        .scale state.get \zoom
-        .on \zoom, -> state.set {zoom: d3.event.scale, translate: d3.event.translate.slice!}
-
-    state.on \change:translate, (s, current-translation) ->
-        svg-group.attr \transform, "translate(#{ current-translation }) scale(#{ s.get \zoom })"
-
-    state.on \change:zoom, (s, current-zoom) ->
-        svg-group.attr \transform, "translate(#{ s.get(\translate) }) scale(#{ current-zoom })"
-
-    svg.call zoom
-
-    centre-and-zoom ((.x) << (.dagre)), ((.y) << (.dagre)), state, nodes, zoom
-
-    fix-dag-box-collisions = (max-i, d, i) -->
-        return if i < max-i # only fire once, and only at the end of all transitions.
-        scale = get-descale!
-        half-pad = node-padding / 2
-        is-focussed = -> any (.highlight), it.edges
-
-        highlit = map (-> it <<< {bounds: to-ltrb it.dagre{x, y, height, width}, scale}), filter is-focussed, nodes
-
-        max-rounds = 80
-        round = 0
-        rounds-per-run = 6
-
-        focussed-nodes = nodes-enter.filter is-focussed
-        affected-edges = edges-enter.filter (.highlight)
-            .select-all \path
-
-        reroute = ({source, target, dagre}) ->
-            [s, t] = map (-> dagre: to-xywh it.bounds), [source, target]
-            spline {dagre, source: s, target: t}
-
-        explodify highlit, round, rounds-per-run, max-rounds, ->
-            focussed-nodes.attr \transform, (n) ->
-                {x, y} = to-xywh n.bounds
-                "translate(#{ x },#{ y }) scale(#{ scale })"
-            focussed-nodes.select-all \rect .attr \fill, (n) ->
-                n |> rect-color |> if n.is-centre then brighten else id
-            affected-edges.each (edge, i) ->
-                f = ~> d3.select(@).attr \d, reroute edge
-                set-timeout f, 0
-
-    var cooldown
-
-    focus-edges = ->
-        some-lit = any (.highlight), edges
-
-        if cooldown? and not some-lit
-            clear-timeout cooldown
-
-        delay = if some-lit then 250ms else 0
-
-        cooldown := set-timeout (animate-focus some-lit), delay
-
-    animate-focus = (some-lit) -> ->
-
-        duration = 100ms
-        de-scale = Math.max 1, get-descale!
-        max-i = nodes.length - 1
-
-        not-focussed = -> not some-lit or not any (.highlight), it.edges
-
-        nodes-enter.transition!
-            .duration duration * 2
-            .attr \transform, ->
-                | not-focussed it => "translate(#{ it.dagre.x },#{ it.dagre.y })"
-                | otherwise => "translate(#{ it.dagre.x },#{ it.dagre.y }) scale(#{ de-scale })"
-            .attr \opacity, ->
-                | not some-lit => 1
-                | any (.highlight), it.edges => 1
-                | otherwise => 0.3
-            .each \end, if (some-lit and de-scale > 1) then fix-dag-box-collisions max-i else (->)
-
-        edge-paths = svg-edges.select-all \path
-            .transition!
-                .duration duration
-                .attr \stroke-width, -> if it.highlight then 10px * de-scale else 5px
-                .attr \stroke, ->
-                    | it.highlight => BRIGHTEN link-stroke it
-                    | otherwise    => link-stroke it
-                .attr \fill, ->
-                    | it.highlight => BRIGHTEN link-fill it
-                    | otherwise    => link-fill it
-                .attr \opacity, ->
-                    | not some-lit or it.highlight => 0.8
-                    | some-lit => 0.2
-                    | otherwise => 0.5
-
-        # see fix-dag-box-collisions
-        unless some-lit
-            edge-paths.attr \d, spline
-            nodes-enter.select-all \rect
-                .attr \fill, rect-color
-
-        svg-edges.select-all \text
-            .transition!
-                .duration duration
-                .attr \font-weight, -> if it.highlight then \bold else \normal
-                .attr \font-size, -> if it.highlight then 28px else 14px
-
-    highlight-targets = (node) ->
-        svg-group.node().append-child this # Move to front
-
-        moar = (n) -> reject (is n), map (.target), n.edges
-        node.is-centre = true
-        queue = [node]
-        max-marked = 15 # Crashing the browser with too many...
-        marked = 0
-
-        while (n = queue.shift!) and marked++ < max-marked
-            each (<<< highlight: true), reject (is n) << (.target), n.edges
-            each queue~push, moar n
-        focus-edges!
-
-    nodes-enter.on \mouseover, highlight-targets
-
-    nodes-enter.on \mouseout, (node) ->
-        for e in edges
-            e.source.is-centre = e.target.is-centre = false
-            e.highlight = false
-        focus-edges!
-
-    # ensure two control points between source and target
-    edges-enter.each (d) ->
-        {points} = d.dagre
-        unless points.length
-            s = d.source.dagre
-            t = d.target.dagre
-            # Add the midpoint.
-            points.push x: (s.x + t.x) / 2, y: (s.y + t.y) / 2
-
-        if points.length is 1
-            points.push points[0]{x, y}
-
-    add-labels edges-enter
-
-    # Control points on the lines themselves
-    edges-enter.select-all \circle.cp
-        .data (d) ->
-            each (<<< parent: d), d.dagre.points
-            d.dagre.points.slice!reverse!
-        .enter!
-        .append \circle
-            .attr \class, \cp
-            .call drag-cp
-
-    svg-edges.select-all \path
-        .attr \id, (.id) << (.dagre)
-        .attr \d, spline
-        .attr \stroke, link-stroke
-
-    update!
-
-    get-drag-x = get-node-drag-pos \x
-    get-drag-y = get-node-drag-pos \y
-
-    drag-handler = (d, i) ->
-        prev-x = d.dagre.x
-        prev-y = d.dagre.y
-        # Must be inside the svg box
-        d.dagre.x = get-drag-x!
-        d.dagre.y = get-drag-y!
-
-        d3.select(@).attr \transform, "translate(#{ d.dagre.x },#{ d.dagre.y })"
-
-        dx = d.dagre.x - prev-x
-        dy = d.dagre.y - prev-y
-
-        for e in d.edges
-            mv-edge e, dx, dy
-            update!
-            d3.select(\# + e.dagre.id).attr \d, spline(e)
-
-    node-drag = d3.behavior.drag!
-        .origin ({pos, dagre}) -> (if pos then pos else dagre) |> ({x, y}) -> {x, y}
-        .on \drag, drag-handler
-
-    edge-drag = d3.behavior.drag!
-        .on \drag, (d, i) ->
-            mv-edge d, d3.event.dx, d3.event.dy
-            d3.select(@).attr \d, spline d
-
-    svg.call zoom
-
-    nodes-enter.call node-drag
-    edges-enter.call edge-drag
-
-module.exports = {render-dag}
-
-function overlaps {bounds:a}, {bounds:b}
-    p = node-padding
-
-    # Check for:
-    #
-    #    +- +-----+----+
-    #    |  |     |    |
-    #    |  |     |    |
-    #    + -+-----+----+
-    #
-    [a, b] = sort-by (.l), [a, b]
-    overlaps-h =
-        | a.l - p < b.l and b.l - p < a.r => true
-        | a.l - p < b.r and b.r + p < a.r => true
-        | otherwise => false
-
-    [a, b] = sort-by (.t), [a, b]
-    overlaps-v =
-        | a.t - p < b.t and b.t - p < a.b => true
-        | a.t - p < b.b and b.b + p < a.b => true
-        | otherwise => false
-
-    contained =
-        | overlaps-h or overlaps-v => false
-        | a.l < b.l and b.l < a.r and a.t < b.t and b.t < a.b => true
-        | otherwise => false
-
-    contained or (overlaps-h and overlaps-v)
+            d3.scale.linear!.domain [max-rank, 0]
+                    .range @rank-scale
+                    .interpolate d3.interpolate-number
+
+        start = new Date().get-time!
+
+        @renderer.graph graph
+            ..layout layout
+            ..transition (.duration duration) . (.transition!)
+            ..update!
+
+        console.debug "Update took #{ (new Date().get-time! - start) / 1000ms } seconds"
+        set-timeout @~fit-to-bounds, duration + 1ms if graph.size! # TODO: avoid this if already zoomed?
 
