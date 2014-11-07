@@ -1,5 +1,6 @@
 Q = require \q
 {Service} = require \imjs
+_ = require \underscore
 {concat-map, id, unique} = require 'prelude-ls'
 
 OntologyWidget = require './ontology-widget.ls'

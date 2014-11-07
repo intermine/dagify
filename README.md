@@ -6,13 +6,7 @@ Spaghetti in your browser.
 Building useful files:
 ------------------------
 
-Install dev-dependencies:
-
-```:sh
-$ npm install
-```
-
-Build everything
+This library uses Make to build everything
 
 ```:sh
 $ make
@@ -20,8 +14,6 @@ $ make
 
 This produces:
 
-* `dagify.js`, the main library file
-* `ontology-widget.js`,a wrapper around the library in the Report Widget interface
+* `/build/dag-widget.js`, the main library file
 * `demo.js`, a demonstration web-app.
-* `dist`, a directory containing all the files needed for use as a report widget.
 

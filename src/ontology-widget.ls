@@ -36,7 +36,7 @@ module.exports = class OntologyWidget extends Backbone.View
             ..wire-to-dag dag
             ..render!
 
-        @$el.foundation!
+        @$el.foundation?!
 
         return this
 
