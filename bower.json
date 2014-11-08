@@ -1,6 +1,6 @@
 {
   "name": "dagify",
-  "main": "build/dag-widget.js",
+  "main": ["style.css", "build/dag-widget.js"],
   "version": "0.1.0",
   "homepage": "https://github.com/intermine/dagify",
   "description": "Render DAGs",
