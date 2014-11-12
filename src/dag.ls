@@ -309,6 +309,15 @@ export class DAG extends Backbone.View
         layout = dagre-d3.layout!rank-dir @state.get \rankDir
         graph  = @get-graph!
 
+        max-rank = maximum map (get-rank graph), graph.nodes!
+
+        @opacity-scale = if not max-rank
+            id
+        else
+            d3.scale.linear!.domain [max-rank, 0]
+                    .range @rank-scale
+                    .interpolate d3.interpolate-number
+
         node-labels = @node-labels
         edge-labels = @edge-labels
         labeler = (labels, model) --> (model.get find model~has, labels) ? ''
@@ -412,15 +421,6 @@ export class DAG extends Backbone.View
         duration = @state.get \duration
         layout = dagre-d3.layout!rank-dir @state.get \rankDir
         graph = @get-graph!
-
-        max-rank = maximum map (get-rank graph), graph.nodes!
-
-        @opacity-scale = if not max-rank
-            id
-        else
-            d3.scale.linear!.domain [max-rank, 0]
-                    .range @rank-scale
-                    .interpolate d3.interpolate-number
 
         start = new Date().get-time!
 
