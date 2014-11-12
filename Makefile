@@ -73,6 +73,7 @@ loc:
 
 clean:
 	rm --force package.json
+	rm --force --recursive node_modules
 	rm --force --recursive lib
 	rm --force --recursive dist
 	rm --force --recursive jstl

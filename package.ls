@@ -5,6 +5,8 @@ author: 'Alex Kalderimis <alex.kalderimis@gmail.com>'
 
 description: "Dagify is an embeddable application for displaying ontology data"
 
+repository: 'https://github.com/intermine/dagify'
+
 keywords:
     'intermine'
     'bioinformatics'
@@ -26,7 +28,7 @@ licenses:
 
 dev-dependencies:
     'd3': '~3.3.9'
-    'dagre-d3': 'alexkalderimis/dagre-d3'
+    'dagre-d3': 'alexkalderimis/dagre-d3#c6eca5eed39794a5acc26b76f48472e9eac1d6a8'
     "imjs": '~3.2.1'
     'zepto-browserify': '1.0.0'
     'prelude-ls': "~1.0.3"
