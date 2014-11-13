@@ -2,6 +2,10 @@
 // generated on 2014-11-13 using generator-knockout-gulp-bootstrap 0.0.1
 var gulp = require('gulp');
 var $ = require('gulp-load-plugins')();
+var browserify = require('browserify');
+var transform = require('vinyl-transform');
+var uglify = require('gulp-uglify');
+var wiredep = require('wiredep').stream;
 
 gulp.task('styles', function () {
   return gulp.src('app/styles/main.css')
@@ -10,7 +14,7 @@ gulp.task('styles', function () {
 });
 
 gulp.task('jshint', function () {
-  return gulp.src('app/scripts/**/*.js')
+  return gulp.src('src/**/*.js')
     .pipe($.jshint())
     .pipe($.jshint.reporter('jshint-stylish'))
     .pipe($.jshint.reporter('fail'));
@@ -76,8 +80,6 @@ gulp.task('serve', ['connect'], function () {
 
 // inject bower components
 gulp.task('wiredep', function () {
-  var wiredep = require('wiredep').stream;
-
   gulp.src('app/*.html')
     .pipe(wiredep({
       directory: 'bower_components'
@@ -96,14 +98,29 @@ gulp.task('watch', ['connect', 'serve'], function () {
     'app/images/**/*'
   ]).on('change', $.livereload.changed);
 
-  gulp.watch('app/styles/**/*.css', ['styles']);
   gulp.watch('bower.json', ['wiredep']);
+  gulp.watch('package.json', ['browserify']);
+  gulp.watch('src/**/*.js', ['browserify']);
+  gulp.watch('app/styles/**/*.css', ['styles']);
 });
 
-gulp.task('build', ['jshint', 'html', 'images', 'fonts', 'extras'], function () {
+gulp.task('browserify', function () {
+  var browserified = transform(function(filename) {
+    var b = browserify(filename);
+    return b.bundle();
+  });
+  
+  return gulp.src(['./src/*.js'])
+    .pipe(browserified)
+    //.pipe(uglify())
+    .pipe(gulp.dest('./app/scripts'));
+});
+
+gulp.task('build', ['jshint', 'images', 'fonts', 'extras', 'browserify'], function () {
   return gulp.src('dist/**/*').pipe($.size({title: 'build', gzip: true}));
 });
 
 gulp.task('default', ['clean'], function () {
   gulp.start('build');
 });
+
