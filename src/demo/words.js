@@ -1,12 +1,12 @@
 'use strict';
 
 var Widget = require('../widget');
-var graph = require('../fixtures/small');
+var graph = require('./fixtures/small');
 
-function load () {
+function load (container, summary) {
   var widget = new Widget(graph);
-  widget.graphElement = document.querySelector('.graph-container');
-  widget.summaryElement = document.querySelector('.graph-summary');
+  widget.graphElement = container;
+  widget.summaryElement = summary;
 
   widget.getNodeLabel = function (node) {
     return node.name;

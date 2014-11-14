@@ -1,6 +1,7 @@
 'use strict';
 
 var Backbone = require('backbone');
+var string = require('underscore.string');
 
 var routes = {
   words: require('./demo/words'),
@@ -32,20 +33,33 @@ var Router = Backbone.View.extend({
 });
 
 function main () {
-  var header = document.querySelector('.app > .header');
-  var state = new Backbone.Model();
-  var router = new Router({model: state, el: header});
+  var header    = document.querySelector('.app > .header')
+    , container = document.querySelector('.graph-container')
+    , summary   = document.querySelector('.graph-summary')
+    , controls  = document.querySelector('.graph-controls')
+    , state     = new Backbone.Model()
+    , router    = new Router({model: state, el: header})
+    ;
 
   state.on('change:page', function () {
     var page = state.get('page');
+    var heading = document.querySelector('.app > .jumbotron h2');
     if (page in routes) {
-      routes[page]();
+      heading.innerHTML = string.capitalize(page);
+      routes[page](container, summary, controls);
     } else {
-      routes.fallback(page);
+      heading.innerHTML = '404';
+      routes.fallback(container, summary, controls, page);
     }
   });
 
-  state.set({page: 'words'});
+  var hash = window.location.hash;
+  if (hash) {
+    console.log('page => ' + hash.slice(1));
+    state.set({page: hash.slice(1)});
+  } else {
+    state.set({page: 'words'});
+  }
 }
 
 window.onload = main;

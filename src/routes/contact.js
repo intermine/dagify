@@ -2,8 +2,9 @@
 
 var template = require('../templates/contact');
 
-function load () {
-  document.querySelector('.graph-container').innerHTML = template();
+function load (container, summary, controls) {
+  summary && (summary.innerHTML = '');
+  container && (container.innerHTML = template());
 }
 
 module.exports = load;

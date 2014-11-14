@@ -2,9 +2,9 @@
 
 var template = require('../templates/fallback');
 
-function load (page) {
-  var elem = document.querySelector('.graph-container');
-  elem.innerHTML = template({page: page});
+function load (container, summary, controls, page) {
+  summary && (summary.innerHTML = '');
+  container && (container.innerHTML = template({page: page}));
 }
 
 module.exports = load;
