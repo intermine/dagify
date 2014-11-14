@@ -6,11 +6,25 @@ var browserify = require('browserify');
 var transform = require('vinyl-transform');
 var uglify = require('gulp-uglify');
 var wiredep = require('wiredep').stream;
+var handlebars = require('gulp-handlebars');
+var defineModule = require('gulp-define-module');
+
+gulp.task('templates', function(){
+  gulp.src(['templates/*.hbs'])
+      .pipe(handlebars())
+      .pipe(defineModule('node'))
+      .pipe(gulp.dest('build/templates/'));
+});
 
 gulp.task('styles', function () {
   return gulp.src('app/styles/main.css')
     .pipe($.autoprefixer('last 1 version'))
     .pipe(gulp.dest('.tmp/styles'));
+});
+
+gulp.task('compile', function () {
+  // At present just move source files, (which are JS) to build dir.
+  return gulp.src('./src/**/*').pipe(gulp.dest('build'));
 });
 
 gulp.task('jshint', function () {
@@ -53,7 +67,7 @@ gulp.task('extras', function () {
     .pipe(gulp.dest('dist'));
 });
 
-gulp.task('clean', require('del').bind(null, ['.tmp', 'dist']));
+gulp.task('clean', require('del').bind(null, ['.tmp', 'build', 'dist']));
 
 gulp.task('connect', function () {
   var serveStatic = require('serve-static');
@@ -87,7 +101,7 @@ gulp.task('wiredep', function () {
     .pipe(gulp.dest('app'));
 });
 
-gulp.task('watch', ['connect', 'serve'], function () {
+gulp.task('watch', ['browserify', 'connect', 'serve'], function () {
   $.livereload.listen();
 
   // watch for changes
@@ -101,16 +115,17 @@ gulp.task('watch', ['connect', 'serve'], function () {
   gulp.watch('bower.json', ['wiredep']);
   gulp.watch('package.json', ['browserify']);
   gulp.watch('src/**/*.js', ['browserify']);
+  gulp.watch('templates/**/*.hbs', ['browserify']);
   gulp.watch('app/styles/**/*.css', ['styles']);
 });
 
-gulp.task('browserify', function () {
+gulp.task('browserify', ['compile', 'templates'], function () {
   var browserified = transform(function(filename) {
     var b = browserify(filename);
     return b.bundle();
   });
   
-  return gulp.src(['./src/*.js'])
+  return gulp.src(['./build/*.js'])
     .pipe(browserified)
     //.pipe(uglify())
     .pipe(gulp.dest('./app/scripts'));
