@@ -8,6 +8,21 @@ var uglify = require('gulp-uglify');
 var wiredep = require('wiredep').stream;
 var handlebars = require('gulp-handlebars');
 var defineModule = require('gulp-define-module');
+var notifier = require('node-notifier');
+var util = require('gulp-util');
+
+// Standard handler
+function standardHandler(err){
+  notifier.notify({ message: 'Error: ' + err.message });
+  // Log to console
+  util.log(util.colors.red('Error'), err.message);
+}
+
+// Handler for browserify
+function browserifyHandler(err){
+  standardHandler(err);
+  this.end();
+}
 
 gulp.task('templates', function(){
   gulp.src(['templates/*.hbs'])
@@ -124,10 +139,9 @@ gulp.task('browserify', ['compile', 'templates'], function () {
     var b = browserify(filename);
     return b.bundle();
   });
-  
   return gulp.src(['./build/*.js'])
     .pipe(browserified)
-    //.pipe(uglify())
+    .on('error', browserifyHandler) //.pipe(uglify())
     .pipe(gulp.dest('./app/scripts'));
 });
 
