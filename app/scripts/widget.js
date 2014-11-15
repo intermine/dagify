@@ -48,7 +48,55 @@ module.exports = function (element, graph) {
   };
 };
 
-},{"../templates/graph.container":3,"d3":9,"dagre-d3":10}],2:[function(require,module,exports){
+},{"../templates/graph.container":4,"d3":12,"dagre-d3":13}],2:[function(require,module,exports){
+'use strict';
+
+var dagreD3 = require('dagre-d3');
+
+/**
+ * @params widget - An object with the following structure:
+ *   graphState :: Jsonable
+ *   eachNode :: (Jsonable) -> ()
+ *   eachEdge (Jsonable) -> ()
+ *   trigger :: (String, args...) -> ()
+ *   getNodeID :: (Obj) -> String
+ *   getNodeLabel :: (Obj) -> String
+ *   getBaseNode :: (Obj) -> (Obj)
+ *   getEdgeSource :: (Obj) -> String
+ *   getEdgeTarget :: (Obj) -> String
+ *   getBaseEdge :: (Obj) -> (Obj)
+ *   getEdgeLabel :: (Obj) -> String
+ * 
+ * where: 
+ *   Jsonable is an object with the following structure:
+ *     toJSON :: () -> (Obj)
+ */
+module.exports = function buildGraph (widget) {
+	var graph = new dagreD3.graphlib.Graph();
+
+	graph.setGraph(widget.graphState.toJSON());
+
+	widget.eachNode(function (model) {
+		var node = model.toJSON();
+		var nodeID = widget.getNodeID(node);
+		var nodeData = widget.getBaseNode(node);
+		nodeData.label = widget.getNodeLabel(node);
+		graph.setNode(nodeID, nodeData);
+	});
+	widget.eachEdge(function (model) {
+		var edge = model.toJSON();
+		var sourceId = widget.getEdgeSource(edge);
+		var targetId = widget.getEdgeTarget(edge);
+		var edgeData = widget.getBaseEdge();
+		edgeData.label = widget.getEdgeLabel(edge);
+		graph.setEdge(sourceId, targetId, edgeData);
+	});
+  // publish details of the new graph to listeners.
+	widget.trigger('change:graph', graph);
+	return graph;
+};
+
+},{"dagre-d3":13}],3:[function(require,module,exports){
 'use strict';
 
 var Backbone = require('backbone');
@@ -60,11 +108,11 @@ var GraphState = Backbone.Model.extend({
 });
 module.exports = GraphState;
 
-},{"backbone":6}],3:[function(require,module,exports){
+},{"backbone":9}],4:[function(require,module,exports){
 var Handlebars = require("handlebars");module.exports = Handlebars.template({"compiler":[6,">= 2.0.0-beta.1"],"main":function(depth0,helpers,partials,data) {
   return "<svg><g></g></svg>\n";
   },"useData":true});
-},{"handlebars":122}],4:[function(require,module,exports){
+},{"handlebars":125}],5:[function(require,module,exports){
 var Handlebars = require("handlebars");module.exports = Handlebars.template({"compiler":[6,">= 2.0.0-beta.1"],"main":function(depth0,helpers,partials,data) {
   var helper, functionType="function", helperMissing=helpers.helperMissing, escapeExpression=this.escapeExpression;
   return "<dl class=\"dl-horizontal\">\n    <dt>Edges</dt>\n    <dd>"
@@ -73,15 +121,19 @@ var Handlebars = require("handlebars");module.exports = Handlebars.template({"co
     + escapeExpression(((helper = (helper = helpers.nodeCount || (depth0 != null ? depth0.nodeCount : depth0)) != null ? helper : helperMissing),(typeof helper === functionType ? helper.call(depth0, {"name":"nodeCount","hash":{},"data":data}) : helper)))
     + "</dd>\n</dl>\n";
 },"useData":true});
-},{"handlebars":122}],5:[function(require,module,exports){
+},{"handlebars":125}],6:[function(require,module,exports){
 'use strict';
 
-var dagreD3 = require('dagre-d3');
 var Backbone = require('backbone');
+var _ = require('underscore');
 
+// Provides the default for the abstract methods needed to build a graph.
+var AbstractAPI = require('./widget/abstract-api');
+// Provides _renderGraph, _renderSummary, _updateGraph,
+// _getNode, _canReachCurrentRoot
+var PrivateAPI = require('./widget/private-api');
+// The Graph state model.
 var GraphState = require('./models/graph-state');
-var renderGraph = require('./d3/render-graph');
-var summaryTemplate = require('./templates/graph.summary');
 
 var Nodes = Backbone.Collection.extend({
   model: Backbone.Model
@@ -90,25 +142,56 @@ var Edges = Backbone.Collection.extend({
   model: Backbone.Model
 });
 
-function Widget (data) {
+// Initialises the three state properties:
+//   * graphState :: Model
+//   * nodes :: Collection
+//   * edges :: Collection
+var Widget = module.exports = function Widget (data) {
   this.graphState = new GraphState();
   this.nodes = new Nodes(data.nodes);
   this.edges = new Edges(data.edges);
 
-  this.graphState.on('change', function () {
-    this._updateGraph();
-  }.bind(this));
-  this.nodes.on('add remove reset', function () {
-    this._updateGraph();
-    this._renderSummary();
-  }.bind(this));
-  this.edges.on('add remove reset', function () {
-    this._updateGraph();
-    this._renderSummary();
-  }.bind(this));
-}
+  this.listenTo(this.graphState, 'change', this.update);
+  this.listenTo(this.nodes, 'add remove reset', this.update);
+  this.listenTo(this.edges, 'add remove reset', this.update);
+};
 
-module.exports = Widget;
+Widget.prototype = _.extend(
+  {
+    eachNode: function (forEach) {
+      var filter = this._canReachCurrentRoot();
+      this.nodes
+          .filter(filter)
+          .forEach(forEach);
+    },
+    eachEdge: function (forEach) {
+      var canReach = this._canReachCurrentRoot();
+      var filter = function (edge) {
+        var data = edge.toJSON();
+        var source = this._getNode(this.getEdgeSource(data));
+        var target = this._getNode(this.getEdgeTarget(data));
+        return _.any([source, target], canReach);
+      }.bind(this);
+      this.edges
+          .filter(filter)
+          .forEach(forEach);
+    },
+    update: function () {
+      this._updateGraph();
+      this._renderSummary();
+    }, 
+    render: function () {
+      this._renderGraph();
+      this._renderSummary();
+    }
+  }
+  , AbstractAPI
+  , PrivateAPI
+  , Backbone.Events // Mixins..
+);
+
+},{"./models/graph-state":3,"./widget/abstract-api":7,"./widget/private-api":8,"backbone":9,"underscore":126}],7:[function(require,module,exports){
+'use strict';
 
 // Assumes nodes are: {label, id}
 function simpleGetLabel (obj) {
@@ -133,8 +216,9 @@ function createBaseEdge () {
   return {};
 }
 
-Widget.prototype = {
-  // All these methods can/should be replaced with more specific implementations
+module.exports = {
+  // All these methods can/should be replaced with more
+  // specific implementations
   // depending on the shape of the incoming data.
   getNodeID: defaultGetNodeID,
   getEdgeSource: defaultGetEdgeSource,
@@ -142,38 +226,67 @@ Widget.prototype = {
   getNodeLabel: simpleGetLabel,
   getEdgeLabel: simpleGetLabel,
   getBaseNode: createBaseNode,
-  getBaseEdge: createBaseEdge,
+  getBaseEdge: createBaseEdge
+};
 
-  buildGraph: function () {
-    var self = this
-      , graph = new dagreD3.graphlib.Graph();
+},{}],8:[function(require,module,exports){
+'use strict';
 
-    graph.setGraph(this.graphState.toJSON());
+var _ = require('underscore');
+var renderGraph = require('../d3/render-graph');
+var summaryTemplate = require('../templates/graph.summary');
+var buildGraph = require('../logic/build-graph');
 
-    this.nodes.each(function (model) {
-      var node = model.toJSON();
-      var nodeID = self.getNodeID(node);
-      var nodeData = self.getBaseNode(node);
-      nodeData.label = self.getNodeLabel(node);
-      graph.setNode(nodeID, nodeData);
-    });
-    this.edges.each(function (model) {
-      var edge = model.toJSON();
-      var sourceId = self.getEdgeSource(edge);
-      var targetId = self.getEdgeTarget(edge);
-      var edgeData = self.getBaseEdge();
-      edgeData.label = self.getEdgeLabel(edge);
-      graph.setEdge(sourceId, targetId, edgeData);
-    });
-    return graph;
+// Private - these methods are not part of the public API
+module.exports = {
+
+  _getNode: function (nid) {
+    return this.nodes.find(function (node) {
+      return this.getNodeID(node.toJSON()) === nid;
+    }.bind(this));
   },
 
-  render: function () {
-    this._renderGraph();
-    this._renderSummary();
+  _getParentsOf: function (nid) {
+    var parents = [];
+    this.edges.each(function (edge) {
+      var data = edge.toJSON();
+      var node = this.getEdgeSource(data);
+      var parent = this.getEdgeTarget(data);
+      if (node === nid) {
+        parents.push(parent);
+      }
+    }.bind(this));
+    return parents;
+  },
+  _canReachCurrentRoot: function () {
+    var currentRoot = this.graphState.get('currentRoot')
+      , cache = {}; 
+    cache[currentRoot] = true; // Obviously the root can reach itself.
+    if (!currentRoot) {
+      return function () { return true; };
+    }
+    // getNode :: (nid) -> NodeModel
+    var getNode = this._getNode.bind(this);
+    // getID :: (NodeModel) -> nid
+    var getID = _.compose(this.getNodeID, function (nm) { return nm.toJSON() });
+
+    // _canReach :: (NodeModel) -> bool
+    var _canReach = function (node) {
+      var nid = getID(node);
+      if (nid in cache) {
+        return cache[nid];
+      }
+      // parents :: [nid]
+      var parents = this._getParentsOf(nid);
+      if (_.include(parents, currentRoot)) {
+        return cache[nid] = true;
+      } else {
+        return cache[nid] = _.any(parents.map(getNode), _canReach);
+      }
+    }.bind(this);
+    return _canReach;
   },
 
-  // Private - these methods are not part of the public API
   _renderSummary: function () {
     if (this.summaryElement) {
       this.summaryElement.innerHTML = summaryTemplate({
@@ -185,19 +298,18 @@ Widget.prototype = {
 
   _updateGraph: function () {
     if (this._update) {
-      this._update(this.buildGraph());
+      this._update(buildGraph(this));
     }
   },
 
   _renderGraph: function () {
     if (this.graphElement) {
-      this._update = renderGraph(this.graphElement, this.buildGraph());
+      this._update = renderGraph(this.graphElement, buildGraph(this));
     }
   }
-
 };
 
-},{"./d3/render-graph":1,"./models/graph-state":2,"./templates/graph.summary":4,"backbone":6,"dagre-d3":10}],6:[function(require,module,exports){
+},{"../d3/render-graph":1,"../logic/build-graph":2,"../templates/graph.summary":5,"underscore":126}],9:[function(require,module,exports){
 //     Backbone.js 1.1.2
 
 //     (c) 2010-2014 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -1807,7 +1919,7 @@ Widget.prototype = {
 
 }));
 
-},{"underscore":7}],7:[function(require,module,exports){
+},{"underscore":10}],10:[function(require,module,exports){
 //     Underscore.js 1.7.0
 //     http://underscorejs.org
 //     (c) 2009-2014 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -3224,9 +3336,9 @@ Widget.prototype = {
   }
 }.call(this));
 
-},{}],8:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 
-},{}],9:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 !function() {
   var d3 = {
     version: "3.4.13"
@@ -12442,7 +12554,7 @@ Widget.prototype = {
   if (typeof define === "function" && define.amd) define(d3); else if (typeof module === "object" && module.exports) module.exports = d3;
   this.d3 = d3;
 }();
-},{}],10:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 /**
  * @license
  * Copyright (c) 2012-2013 Chris Pettitt
@@ -12474,7 +12586,7 @@ module.exports =  {
   version: require("./lib/version")
 };
 
-},{"./lib/dagre":17,"./lib/graphlib":18,"./lib/intersect":19,"./lib/render":32,"./lib/util":34,"./lib/version":35}],11:[function(require,module,exports){
+},{"./lib/dagre":20,"./lib/graphlib":21,"./lib/intersect":22,"./lib/render":35,"./lib/util":37,"./lib/version":38}],14:[function(require,module,exports){
 var util = require("./util");
 
 module.exports = {
@@ -12519,7 +12631,7 @@ function vee(parent, id, edge, type) {
   util.applyStyle(path, edge[type + "Style"]);
 }
 
-},{"./util":34}],12:[function(require,module,exports){
+},{"./util":37}],15:[function(require,module,exports){
 var util = require("./util");
 
 module.exports = createClusters;
@@ -12554,7 +12666,7 @@ function createClusters(selection, g) {
     });
 }
 
-},{"./util":34}],13:[function(require,module,exports){
+},{"./util":37}],16:[function(require,module,exports){
 "use strict";
 
 var _ = require("./lodash"),
@@ -12591,7 +12703,7 @@ function createEdgeLabels(selection, g) {
   return svgEdgeLabels;
 }
 
-},{"./d3":16,"./label/add-label":27,"./lodash":29,"./util":34}],14:[function(require,module,exports){
+},{"./d3":19,"./label/add-label":30,"./lodash":32,"./util":37}],17:[function(require,module,exports){
 "use strict";
 
 var _ = require("./lodash"),
@@ -12710,7 +12822,7 @@ function exit(svgPaths, g) {
     });
 }
 
-},{"./d3":16,"./intersect/intersect-node":23,"./lodash":29,"./util":34}],15:[function(require,module,exports){
+},{"./d3":19,"./intersect/intersect-node":26,"./lodash":32,"./util":37}],18:[function(require,module,exports){
 "use strict";
 
 var _ = require("./lodash"),
@@ -12769,11 +12881,11 @@ function createNodes(selection, g, shapes) {
   return svgNodes;
 }
 
-},{"./d3":16,"./label/add-label":27,"./lodash":29,"./util":34}],16:[function(require,module,exports){
+},{"./d3":19,"./label/add-label":30,"./lodash":32,"./util":37}],19:[function(require,module,exports){
 // Stub to get D3 either via NPM or from the global object
 module.exports = window.d3;
 
-},{}],17:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 /* global window */
 
 var dagre;
@@ -12790,7 +12902,7 @@ if (!dagre) {
 
 module.exports = dagre;
 
-},{"dagre":36}],18:[function(require,module,exports){
+},{"dagre":39}],21:[function(require,module,exports){
 /* global window */
 
 var graphlib;
@@ -12807,7 +12919,7 @@ if (!graphlib) {
 
 module.exports = graphlib;
 
-},{"graphlib":86}],19:[function(require,module,exports){
+},{"graphlib":89}],22:[function(require,module,exports){
 module.exports = {
   node: require("./intersect-node"),
   circle: require("./intersect-circle"),
@@ -12816,7 +12928,7 @@ module.exports = {
   rect: require("./intersect-rect")
 };
 
-},{"./intersect-circle":20,"./intersect-ellipse":21,"./intersect-node":23,"./intersect-polygon":24,"./intersect-rect":25}],20:[function(require,module,exports){
+},{"./intersect-circle":23,"./intersect-ellipse":24,"./intersect-node":26,"./intersect-polygon":27,"./intersect-rect":28}],23:[function(require,module,exports){
 var intersectEllipse = require("./intersect-ellipse");
 
 module.exports = intersectCircle;
@@ -12825,7 +12937,7 @@ function intersectCircle(node, rx, point) {
   return intersectEllipse(node, rx, rx, point);
 }
 
-},{"./intersect-ellipse":21}],21:[function(require,module,exports){
+},{"./intersect-ellipse":24}],24:[function(require,module,exports){
 module.exports = intersectEllipse;
 
 function intersectEllipse(node, rx, ry, point) {
@@ -12852,7 +12964,7 @@ function intersectEllipse(node, rx, ry, point) {
 }
 
 
-},{}],22:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 module.exports = intersectLine;
 
 /*
@@ -12924,14 +13036,14 @@ function sameSign(r1, r2) {
   return r1 * r2 > 0;
 }
 
-},{}],23:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 module.exports = intersectNode;
 
 function intersectNode(node, point) {
   return node.intersect(point);
 }
 
-},{}],24:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 var intersectLine = require("./intersect-line");
 
 module.exports = intersectPolygon;
@@ -12988,7 +13100,7 @@ function intersectPolygon(node, polyPoints, point) {
   return intersections[0];
 }
 
-},{"./intersect-line":22}],25:[function(require,module,exports){
+},{"./intersect-line":25}],28:[function(require,module,exports){
 module.exports = intersectRect;
 
 function intersectRect(node, point) {
@@ -13022,7 +13134,7 @@ function intersectRect(node, point) {
   return {x: x + sx, y: y + sy};
 }
 
-},{}],26:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 var util = require("../util");
 
 module.exports = addHtmlLabel;
@@ -13067,7 +13179,7 @@ function addHtmlLabel(root, node) {
   return fo;
 }
 
-},{"../util":34}],27:[function(require,module,exports){
+},{"../util":37}],30:[function(require,module,exports){
 var addTextLabel = require("./add-text-label"),
     addHtmlLabel = require("./add-html-label");
 
@@ -13092,7 +13204,7 @@ function addLabel(root, node) {
   return labelSvg;
 }
 
-},{"./add-html-label":26,"./add-text-label":28}],28:[function(require,module,exports){
+},{"./add-html-label":29,"./add-text-label":31}],31:[function(require,module,exports){
 var util = require("../util");
 
 module.exports = addTextLabel;
@@ -13139,7 +13251,7 @@ function processEscapeSequences(text) {
   return newText;
 }
 
-},{"../util":34}],29:[function(require,module,exports){
+},{"../util":37}],32:[function(require,module,exports){
 /* global window */
 
 var lodash;
@@ -13156,7 +13268,7 @@ if (!lodash) {
 
 module.exports = lodash;
 
-},{"lodash":106}],30:[function(require,module,exports){
+},{"lodash":109}],33:[function(require,module,exports){
 "use strict";
 
 var util = require("./util"),
@@ -13180,7 +13292,7 @@ function positionEdgeLabels(selection, g) {
     .attr("transform", translate);
 }
 
-},{"./d3":16,"./lodash":29,"./util":34}],31:[function(require,module,exports){
+},{"./d3":19,"./lodash":32,"./util":37}],34:[function(require,module,exports){
 "use strict";
 
 var util = require("./util"),
@@ -13203,7 +13315,7 @@ function positionNodes(selection, g) {
     .attr("transform", translate);
 }
 
-},{"./d3":16,"./util":34}],32:[function(require,module,exports){
+},{"./d3":19,"./util":37}],35:[function(require,module,exports){
 var _ = require("./lodash"),
     layout = require("./dagre").layout;
 
@@ -13369,7 +13481,7 @@ function createOrSelectGroup(root, name) {
   return selection;
 }
 
-},{"./arrows":11,"./create-clusters":12,"./create-edge-labels":13,"./create-edge-paths":14,"./create-nodes":15,"./dagre":17,"./lodash":29,"./position-edge-labels":30,"./position-nodes":31,"./shapes":33}],33:[function(require,module,exports){
+},{"./arrows":14,"./create-clusters":15,"./create-edge-labels":16,"./create-edge-paths":17,"./create-nodes":18,"./dagre":20,"./lodash":32,"./position-edge-labels":33,"./position-nodes":34,"./shapes":36}],36:[function(require,module,exports){
 "use strict";
 
 var intersectRect = require("./intersect/intersect-rect"),
@@ -13428,7 +13540,7 @@ function circle(parent, bbox, node) {
   return shapeSvg;
 }
 
-},{"./intersect/intersect-circle":20,"./intersect/intersect-ellipse":21,"./intersect/intersect-rect":25}],34:[function(require,module,exports){
+},{"./intersect/intersect-circle":23,"./intersect/intersect-ellipse":24,"./intersect/intersect-rect":28}],37:[function(require,module,exports){
 var _ = require("./lodash");
 
 // Public utility functions
@@ -13484,10 +13596,10 @@ function applyTransition(selection, g) {
   return selection;
 }
 
-},{"./lodash":29}],35:[function(require,module,exports){
+},{"./lodash":32}],38:[function(require,module,exports){
 module.exports = "0.3.2";
 
-},{}],36:[function(require,module,exports){
+},{}],39:[function(require,module,exports){
 /*
 Copyright (c) 2012-2014 Chris Pettitt
 
@@ -13522,7 +13634,7 @@ module.exports = {
   version: require("./lib/version")
 };
 
-},{"./lib/debug":41,"./lib/graphlib":42,"./lib/layout":44,"./lib/util":64,"./lib/version":65}],37:[function(require,module,exports){
+},{"./lib/debug":44,"./lib/graphlib":45,"./lib/layout":47,"./lib/util":67,"./lib/version":68}],40:[function(require,module,exports){
 "use strict";
 
 var _ = require("./lodash"),
@@ -13591,7 +13703,7 @@ function undo(g) {
   });
 }
 
-},{"./greedy-fas":43,"./lodash":45}],38:[function(require,module,exports){
+},{"./greedy-fas":46,"./lodash":48}],41:[function(require,module,exports){
 var _ = require("./lodash"),
     util = require("./util");
 
@@ -13631,7 +13743,7 @@ function addBorderNode(g, prop, prefix, sg, sgNode, rank) {
   }
 }
 
-},{"./lodash":45,"./util":64}],39:[function(require,module,exports){
+},{"./lodash":48,"./util":67}],42:[function(require,module,exports){
 "use strict";
 
 var _ = require("./lodash");
@@ -13705,7 +13817,7 @@ function swapXYOne(attrs) {
   attrs.y = x;
 }
 
-},{"./lodash":45}],40:[function(require,module,exports){
+},{"./lodash":48}],43:[function(require,module,exports){
 /*
  * Simple doubly linked list implementation derived from Cormen, et al.,
  * "Introduction to Algorithms".
@@ -13763,7 +13875,7 @@ function filterOutLinks(k, v) {
   }
 }
 
-},{}],41:[function(require,module,exports){
+},{}],44:[function(require,module,exports){
 var _ = require("./lodash"),
     util = require("./util"),
     Graph = require("./graphlib").Graph;
@@ -13799,9 +13911,9 @@ function debugOrdering(g) {
   return h;
 }
 
-},{"./graphlib":42,"./lodash":45,"./util":64}],42:[function(require,module,exports){
-module.exports=require(18)
-},{"/home/alex/projects/js/dagify/node_modules/dagre-d3/lib/graphlib.js":18,"graphlib":66}],43:[function(require,module,exports){
+},{"./graphlib":45,"./lodash":48,"./util":67}],45:[function(require,module,exports){
+module.exports=require(21)
+},{"/Users/alex/projects/dagify/node_modules/dagre-d3/lib/graphlib.js":21,"graphlib":69}],46:[function(require,module,exports){
 var _ = require("./lodash"),
     Graph = require("./graphlib").Graph,
     List = require("./data/list");
@@ -13921,7 +14033,7 @@ function assignBucket(buckets, zeroIdx, entry) {
   }
 }
 
-},{"./data/list":40,"./graphlib":42,"./lodash":45}],44:[function(require,module,exports){
+},{"./data/list":43,"./graphlib":45,"./lodash":48}],47:[function(require,module,exports){
 "use strict";
 
 var _ = require("./lodash"),
@@ -14315,9 +14427,9 @@ function canonicalize(attrs) {
   return newAttrs;
 }
 
-},{"./acyclic":37,"./add-border-segments":38,"./coordinate-system":39,"./graphlib":42,"./lodash":45,"./nesting-graph":46,"./normalize":47,"./order":52,"./parent-dummy-chains":57,"./position":59,"./rank":61,"./util":64}],45:[function(require,module,exports){
-module.exports=require(29)
-},{"/home/alex/projects/js/dagify/node_modules/dagre-d3/lib/lodash.js":29,"lodash":106}],46:[function(require,module,exports){
+},{"./acyclic":40,"./add-border-segments":41,"./coordinate-system":42,"./graphlib":45,"./lodash":48,"./nesting-graph":49,"./normalize":50,"./order":55,"./parent-dummy-chains":60,"./position":62,"./rank":64,"./util":67}],48:[function(require,module,exports){
+module.exports=require(32)
+},{"/Users/alex/projects/dagify/node_modules/dagre-d3/lib/lodash.js":32,"lodash":109}],49:[function(require,module,exports){
 var _ = require("./lodash"),
     util = require("./util");
 
@@ -14451,7 +14563,7 @@ function cleanup(g) {
   });
 }
 
-},{"./lodash":45,"./util":64}],47:[function(require,module,exports){
+},{"./lodash":48,"./util":67}],50:[function(require,module,exports){
 "use strict";
 
 var _ = require("./lodash"),
@@ -14543,7 +14655,7 @@ function undo(g) {
   });
 }
 
-},{"./lodash":45,"./util":64}],48:[function(require,module,exports){
+},{"./lodash":48,"./util":67}],51:[function(require,module,exports){
 var _ = require("../lodash");
 
 module.exports = addSubgraphConstraints;
@@ -14598,7 +14710,7 @@ function addSubgraphConstraints(g, cg, vs) {
   */
 }
 
-},{"../lodash":45}],49:[function(require,module,exports){
+},{"../lodash":48}],52:[function(require,module,exports){
 var _ = require("../lodash");
 
 module.exports = barycenter;
@@ -14628,7 +14740,7 @@ function barycenter(g, movable) {
 }
 
 
-},{"../lodash":45}],50:[function(require,module,exports){
+},{"../lodash":48}],53:[function(require,module,exports){
 var _ = require("../lodash"),
     Graph = require("../graphlib").Graph;
 
@@ -14703,7 +14815,7 @@ function createRootNode(g) {
   return v;
 }
 
-},{"../graphlib":42,"../lodash":45}],51:[function(require,module,exports){
+},{"../graphlib":45,"../lodash":48}],54:[function(require,module,exports){
 "use strict";
 
 var _ = require("../lodash");
@@ -14775,7 +14887,7 @@ function twoLayerCrossCount(g, northLayer, southLayer) {
   return cc;
 }
 
-},{"../lodash":45}],52:[function(require,module,exports){
+},{"../lodash":48}],55:[function(require,module,exports){
 "use strict";
 
 var _ = require("../lodash"),
@@ -14856,7 +14968,7 @@ function assignOrder(g, layering) {
   });
 }
 
-},{"../graphlib":42,"../lodash":45,"../util":64,"./add-subgraph-constraints":48,"./build-layer-graph":50,"./cross-count":51,"./init-order":53,"./sort-subgraph":55}],53:[function(require,module,exports){
+},{"../graphlib":45,"../lodash":48,"../util":67,"./add-subgraph-constraints":51,"./build-layer-graph":53,"./cross-count":54,"./init-order":56,"./sort-subgraph":58}],56:[function(require,module,exports){
 "use strict";
 
 var _ = require("../lodash");
@@ -14896,7 +15008,7 @@ function initOrder(g) {
   return layers;
 }
 
-},{"../lodash":45}],54:[function(require,module,exports){
+},{"../lodash":48}],57:[function(require,module,exports){
 "use strict";
 
 var _ = require("../lodash");
@@ -15021,7 +15133,7 @@ function mergeEntries(target, source) {
   source.merged = true;
 }
 
-},{"../lodash":45}],55:[function(require,module,exports){
+},{"../lodash":48}],58:[function(require,module,exports){
 var _ = require("../lodash"),
     barycenter = require("./barycenter"),
     resolveConflicts = require("./resolve-conflicts"),
@@ -15099,7 +15211,7 @@ function mergeBarycenters(target, other) {
   }
 }
 
-},{"../lodash":45,"./barycenter":49,"./resolve-conflicts":54,"./sort":56}],56:[function(require,module,exports){
+},{"../lodash":48,"./barycenter":52,"./resolve-conflicts":57,"./sort":59}],59:[function(require,module,exports){
 var _ = require("../lodash"),
     util = require("../util");
 
@@ -15158,7 +15270,7 @@ function compareWithBias(bias) {
   };
 }
 
-},{"../lodash":45,"../util":64}],57:[function(require,module,exports){
+},{"../lodash":48,"../util":67}],60:[function(require,module,exports){
 var _ = require("./lodash");
 
 module.exports = parentDummyChains;
@@ -15246,7 +15358,7 @@ function postorder(g) {
   return result;
 }
 
-},{"./lodash":45}],58:[function(require,module,exports){
+},{"./lodash":48}],61:[function(require,module,exports){
 "use strict";
 
 var _ = require("../lodash"),
@@ -15647,7 +15759,7 @@ function width(g, v) {
   return g.node(v).width;
 }
 
-},{"../lodash":45,"../util":64}],59:[function(require,module,exports){
+},{"../lodash":48,"../util":67}],62:[function(require,module,exports){
 "use strict";
 
 var _ = require("../lodash"),
@@ -15679,7 +15791,7 @@ function positionY(g) {
 }
 
 
-},{"../lodash":45,"../util":64,"./bk":58}],60:[function(require,module,exports){
+},{"../lodash":48,"../util":67,"./bk":61}],63:[function(require,module,exports){
 "use strict";
 
 var _ = require("../lodash"),
@@ -15770,7 +15882,7 @@ function shiftRanks(t, g, delta) {
   });
 }
 
-},{"../graphlib":42,"../lodash":45,"./util":63}],61:[function(require,module,exports){
+},{"../graphlib":45,"../lodash":48,"./util":66}],64:[function(require,module,exports){
 "use strict";
 
 var rankUtil = require("./util"),
@@ -15820,7 +15932,7 @@ function networkSimplexRanker(g) {
   networkSimplex(g);
 }
 
-},{"./feasible-tree":60,"./network-simplex":62,"./util":63}],62:[function(require,module,exports){
+},{"./feasible-tree":63,"./network-simplex":65,"./util":66}],65:[function(require,module,exports){
 "use strict";
 
 var _ = require("../lodash"),
@@ -16056,7 +16168,7 @@ function isDescendant(tree, vLabel, rootLabel) {
   return rootLabel.low <= vLabel.lim && vLabel.lim <= rootLabel.lim;
 }
 
-},{"../graphlib":42,"../lodash":45,"../util":64,"./feasible-tree":60,"./util":63}],63:[function(require,module,exports){
+},{"../graphlib":45,"../lodash":48,"../util":67,"./feasible-tree":63,"./util":66}],66:[function(require,module,exports){
 "use strict";
 
 var _ = require("../lodash");
@@ -16119,7 +16231,7 @@ function slack(g, e) {
   return g.node(e.w).rank - g.node(e.v).rank - g.edge(e).minlen;
 }
 
-},{"../lodash":45}],64:[function(require,module,exports){
+},{"../lodash":48}],67:[function(require,module,exports){
 "use strict";
 
 var _ = require("./lodash"),
@@ -16357,10 +16469,10 @@ function notime(name, fn) {
   return fn();
 }
 
-},{"./graphlib":42,"./lodash":45}],65:[function(require,module,exports){
+},{"./graphlib":45,"./lodash":48}],68:[function(require,module,exports){
 module.exports = "0.6.4";
 
-},{}],66:[function(require,module,exports){
+},{}],69:[function(require,module,exports){
 /**
  * Copyright (c) 2014, Chris Pettitt
  * All rights reserved.
@@ -16400,7 +16512,7 @@ module.exports = {
   version: lib.version
 };
 
-},{"./lib":82,"./lib/alg":73,"./lib/json":83}],67:[function(require,module,exports){
+},{"./lib":85,"./lib/alg":76,"./lib/json":86}],70:[function(require,module,exports){
 var _ = require("../lodash");
 
 module.exports = components;
@@ -16429,7 +16541,7 @@ function components(g) {
   return cmpts;
 }
 
-},{"../lodash":84}],68:[function(require,module,exports){
+},{"../lodash":87}],71:[function(require,module,exports){
 var _ = require("../lodash");
 
 module.exports = dfs;
@@ -16470,7 +16582,7 @@ function doDfs(g, v, postorder, visited, acc) {
   }
 }
 
-},{"../lodash":84}],69:[function(require,module,exports){
+},{"../lodash":87}],72:[function(require,module,exports){
 var dijkstra = require("./dijkstra"),
     _ = require("../lodash");
 
@@ -16482,7 +16594,7 @@ function dijkstraAll(g, weightFunc, edgeFunc) {
   }, {});
 }
 
-},{"../lodash":84,"./dijkstra":70}],70:[function(require,module,exports){
+},{"../lodash":87,"./dijkstra":73}],73:[function(require,module,exports){
 var _ = require("../lodash"),
     PriorityQueue = require("../data/priority-queue");
 
@@ -16538,7 +16650,7 @@ function runDijkstra(g, source, weightFn, edgeFn) {
   return results;
 }
 
-},{"../data/priority-queue":80,"../lodash":84}],71:[function(require,module,exports){
+},{"../data/priority-queue":83,"../lodash":87}],74:[function(require,module,exports){
 var _ = require("../lodash"),
     tarjan = require("./tarjan");
 
@@ -16548,7 +16660,7 @@ function findCycles(g) {
   return _.filter(tarjan(g), function(cmpt) { return cmpt.length > 1; });
 }
 
-},{"../lodash":84,"./tarjan":78}],72:[function(require,module,exports){
+},{"../lodash":87,"./tarjan":81}],75:[function(require,module,exports){
 var _ = require("../lodash");
 
 module.exports = floydWarshall;
@@ -16600,7 +16712,7 @@ function runFloydWarshall(g, weightFn, edgeFn) {
   return results;
 }
 
-},{"../lodash":84}],73:[function(require,module,exports){
+},{"../lodash":87}],76:[function(require,module,exports){
 module.exports = {
   components: require("./components"),
   dijkstra: require("./dijkstra"),
@@ -16615,7 +16727,7 @@ module.exports = {
   topsort: require("./topsort")
 };
 
-},{"./components":67,"./dijkstra":70,"./dijkstra-all":69,"./find-cycles":71,"./floyd-warshall":72,"./is-acyclic":74,"./postorder":75,"./preorder":76,"./prim":77,"./tarjan":78,"./topsort":79}],74:[function(require,module,exports){
+},{"./components":70,"./dijkstra":73,"./dijkstra-all":72,"./find-cycles":74,"./floyd-warshall":75,"./is-acyclic":77,"./postorder":78,"./preorder":79,"./prim":80,"./tarjan":81,"./topsort":82}],77:[function(require,module,exports){
 var topsort = require("./topsort");
 
 module.exports = isAcyclic;
@@ -16632,7 +16744,7 @@ function isAcyclic(g) {
   return true;
 }
 
-},{"./topsort":79}],75:[function(require,module,exports){
+},{"./topsort":82}],78:[function(require,module,exports){
 var dfs = require("./dfs");
 
 module.exports = postorder;
@@ -16641,7 +16753,7 @@ function postorder(g, vs) {
   return dfs(g, vs, "post");
 }
 
-},{"./dfs":68}],76:[function(require,module,exports){
+},{"./dfs":71}],79:[function(require,module,exports){
 var dfs = require("./dfs");
 
 module.exports = preorder;
@@ -16650,7 +16762,7 @@ function preorder(g, vs) {
   return dfs(g, vs, "pre");
 }
 
-},{"./dfs":68}],77:[function(require,module,exports){
+},{"./dfs":71}],80:[function(require,module,exports){
 var _ = require("../lodash"),
     Graph = require("../graph"),
     PriorityQueue = require("../data/priority-queue");
@@ -16704,7 +16816,7 @@ function prim(g, weightFunc) {
   return result;
 }
 
-},{"../data/priority-queue":80,"../graph":81,"../lodash":84}],78:[function(require,module,exports){
+},{"../data/priority-queue":83,"../graph":84,"../lodash":87}],81:[function(require,module,exports){
 var _ = require("../lodash");
 
 module.exports = tarjan;
@@ -16753,7 +16865,7 @@ function tarjan(g) {
   return results;
 }
 
-},{"../lodash":84}],79:[function(require,module,exports){
+},{"../lodash":87}],82:[function(require,module,exports){
 var _ = require("../lodash");
 
 module.exports = topsort;
@@ -16789,7 +16901,7 @@ function topsort(g) {
 
 function CycleException() {}
 
-},{"../lodash":84}],80:[function(require,module,exports){
+},{"../lodash":87}],83:[function(require,module,exports){
 var _ = require("../lodash");
 
 module.exports = PriorityQueue;
@@ -16943,7 +17055,7 @@ PriorityQueue.prototype._swap = function(i, j) {
   keyIndices[origArrI.key] = j;
 };
 
-},{"../lodash":84}],81:[function(require,module,exports){
+},{"../lodash":87}],84:[function(require,module,exports){
 "use strict";
 
 var _ = require("./lodash");
@@ -17413,14 +17525,14 @@ function edgeObjToId(isDirected, edgeObj) {
   return edgeArgsToId(isDirected, edgeObj.v, edgeObj.w, edgeObj.name);
 }
 
-},{"./lodash":84}],82:[function(require,module,exports){
+},{"./lodash":87}],85:[function(require,module,exports){
 // Includes only the "core" of graphlib
 module.exports = {
   Graph: require("./graph"),
   version: require("./version")
 };
 
-},{"./graph":81,"./version":85}],83:[function(require,module,exports){
+},{"./graph":84,"./version":88}],86:[function(require,module,exports){
 var _ = require("./lodash"),
     Graph = require("./graph");
 
@@ -17488,42 +17600,42 @@ function read(json) {
   return g;
 }
 
-},{"./graph":81,"./lodash":84}],84:[function(require,module,exports){
-module.exports=require(29)
-},{"/home/alex/projects/js/dagify/node_modules/dagre-d3/lib/lodash.js":29,"lodash":106}],85:[function(require,module,exports){
+},{"./graph":84,"./lodash":87}],87:[function(require,module,exports){
+module.exports=require(32)
+},{"/Users/alex/projects/dagify/node_modules/dagre-d3/lib/lodash.js":32,"lodash":109}],88:[function(require,module,exports){
 module.exports = '1.0.1';
 
-},{}],86:[function(require,module,exports){
-arguments[4][66][0].apply(exports,arguments)
-},{"./lib":102,"./lib/alg":93,"./lib/json":103,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/index.js":66}],87:[function(require,module,exports){
-module.exports=require(67)
-},{"../lodash":104,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/components.js":67}],88:[function(require,module,exports){
-module.exports=require(68)
-},{"../lodash":104,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/dfs.js":68}],89:[function(require,module,exports){
-module.exports=require(69)
-},{"../lodash":104,"./dijkstra":90,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/dijkstra-all.js":69}],90:[function(require,module,exports){
+},{}],89:[function(require,module,exports){
+arguments[4][69][0].apply(exports,arguments)
+},{"./lib":105,"./lib/alg":96,"./lib/json":106,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/index.js":69}],90:[function(require,module,exports){
 module.exports=require(70)
-},{"../data/priority-queue":100,"../lodash":104,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/dijkstra.js":70}],91:[function(require,module,exports){
+},{"../lodash":107,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/components.js":70}],91:[function(require,module,exports){
 module.exports=require(71)
-},{"../lodash":104,"./tarjan":98,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/find-cycles.js":71}],92:[function(require,module,exports){
+},{"../lodash":107,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/dfs.js":71}],92:[function(require,module,exports){
 module.exports=require(72)
-},{"../lodash":104,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/floyd-warshall.js":72}],93:[function(require,module,exports){
-arguments[4][73][0].apply(exports,arguments)
-},{"./components":87,"./dijkstra":90,"./dijkstra-all":89,"./find-cycles":91,"./floyd-warshall":92,"./is-acyclic":94,"./postorder":95,"./preorder":96,"./prim":97,"./tarjan":98,"./topsort":99,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/index.js":73}],94:[function(require,module,exports){
+},{"../lodash":107,"./dijkstra":93,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/dijkstra-all.js":72}],93:[function(require,module,exports){
+module.exports=require(73)
+},{"../data/priority-queue":103,"../lodash":107,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/dijkstra.js":73}],94:[function(require,module,exports){
 module.exports=require(74)
-},{"./topsort":99,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/is-acyclic.js":74}],95:[function(require,module,exports){
+},{"../lodash":107,"./tarjan":101,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/find-cycles.js":74}],95:[function(require,module,exports){
 module.exports=require(75)
-},{"./dfs":88,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/postorder.js":75}],96:[function(require,module,exports){
-module.exports=require(76)
-},{"./dfs":88,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/preorder.js":76}],97:[function(require,module,exports){
-arguments[4][77][0].apply(exports,arguments)
-},{"../data/priority-queue":100,"../graph":101,"../lodash":104,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/prim.js":77}],98:[function(require,module,exports){
+},{"../lodash":107,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/floyd-warshall.js":75}],96:[function(require,module,exports){
+arguments[4][76][0].apply(exports,arguments)
+},{"./components":90,"./dijkstra":93,"./dijkstra-all":92,"./find-cycles":94,"./floyd-warshall":95,"./is-acyclic":97,"./postorder":98,"./preorder":99,"./prim":100,"./tarjan":101,"./topsort":102,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/index.js":76}],97:[function(require,module,exports){
+module.exports=require(77)
+},{"./topsort":102,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/is-acyclic.js":77}],98:[function(require,module,exports){
 module.exports=require(78)
-},{"../lodash":104,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/tarjan.js":78}],99:[function(require,module,exports){
+},{"./dfs":91,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/postorder.js":78}],99:[function(require,module,exports){
 module.exports=require(79)
-},{"../lodash":104,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/topsort.js":79}],100:[function(require,module,exports){
-module.exports=require(80)
-},{"../lodash":104,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/data/priority-queue.js":80}],101:[function(require,module,exports){
+},{"./dfs":91,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/preorder.js":79}],100:[function(require,module,exports){
+arguments[4][80][0].apply(exports,arguments)
+},{"../data/priority-queue":103,"../graph":104,"../lodash":107,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/prim.js":80}],101:[function(require,module,exports){
+module.exports=require(81)
+},{"../lodash":107,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/tarjan.js":81}],102:[function(require,module,exports){
+module.exports=require(82)
+},{"../lodash":107,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/topsort.js":82}],103:[function(require,module,exports){
+module.exports=require(83)
+},{"../lodash":107,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/data/priority-queue.js":83}],104:[function(require,module,exports){
 "use strict";
 
 var _ = require("./lodash");
@@ -17984,16 +18096,16 @@ function edgeObjToId(isDirected, edgeObj) {
   return edgeArgsToId(isDirected, edgeObj.v, edgeObj.w, edgeObj.name);
 }
 
-},{"./lodash":104}],102:[function(require,module,exports){
-arguments[4][82][0].apply(exports,arguments)
-},{"./graph":101,"./version":105,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/index.js":82}],103:[function(require,module,exports){
-arguments[4][83][0].apply(exports,arguments)
-},{"./graph":101,"./lodash":104,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/json.js":83}],104:[function(require,module,exports){
-module.exports=require(29)
-},{"/home/alex/projects/js/dagify/node_modules/dagre-d3/lib/lodash.js":29,"lodash":106}],105:[function(require,module,exports){
+},{"./lodash":107}],105:[function(require,module,exports){
+arguments[4][85][0].apply(exports,arguments)
+},{"./graph":104,"./version":108,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/index.js":85}],106:[function(require,module,exports){
+arguments[4][86][0].apply(exports,arguments)
+},{"./graph":104,"./lodash":107,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/json.js":86}],107:[function(require,module,exports){
+module.exports=require(32)
+},{"/Users/alex/projects/dagify/node_modules/dagre-d3/lib/lodash.js":32,"lodash":109}],108:[function(require,module,exports){
 module.exports = '0.9.1';
 
-},{}],106:[function(require,module,exports){
+},{}],109:[function(require,module,exports){
 (function (global){
 /**
  * @license
@@ -24782,7 +24894,7 @@ module.exports = '0.9.1';
 }.call(this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],107:[function(require,module,exports){
+},{}],110:[function(require,module,exports){
 "use strict";
 /*globals Handlebars: true */
 var Handlebars = require("./handlebars.runtime")["default"];
@@ -24822,7 +24934,7 @@ Handlebars.create = create;
 Handlebars['default'] = Handlebars;
 
 exports["default"] = Handlebars;
-},{"./handlebars.runtime":108,"./handlebars/compiler/ast":110,"./handlebars/compiler/base":111,"./handlebars/compiler/compiler":112,"./handlebars/compiler/javascript-compiler":114}],108:[function(require,module,exports){
+},{"./handlebars.runtime":111,"./handlebars/compiler/ast":113,"./handlebars/compiler/base":114,"./handlebars/compiler/compiler":115,"./handlebars/compiler/javascript-compiler":117}],111:[function(require,module,exports){
 "use strict";
 /*globals Handlebars: true */
 var base = require("./handlebars/base");
@@ -24858,7 +24970,7 @@ Handlebars.create = create;
 Handlebars['default'] = Handlebars;
 
 exports["default"] = Handlebars;
-},{"./handlebars/base":109,"./handlebars/exception":118,"./handlebars/runtime":119,"./handlebars/safe-string":120,"./handlebars/utils":121}],109:[function(require,module,exports){
+},{"./handlebars/base":112,"./handlebars/exception":121,"./handlebars/runtime":122,"./handlebars/safe-string":123,"./handlebars/utils":124}],112:[function(require,module,exports){
 "use strict";
 var Utils = require("./utils");
 var Exception = require("./exception")["default"];
@@ -25090,7 +25202,7 @@ var createFrame = function(object) {
   return frame;
 };
 exports.createFrame = createFrame;
-},{"./exception":118,"./utils":121}],110:[function(require,module,exports){
+},{"./exception":121,"./utils":124}],113:[function(require,module,exports){
 "use strict";
 var Exception = require("../exception")["default"];
 
@@ -25305,7 +25417,7 @@ var AST = {
 // Must be exported as an object rather than the root of the module as the jison lexer
 // most modify the object to operate properly.
 exports["default"] = AST;
-},{"../exception":118}],111:[function(require,module,exports){
+},{"../exception":121}],114:[function(require,module,exports){
 "use strict";
 var parser = require("./parser")["default"];
 var AST = require("./ast")["default"];
@@ -25327,7 +25439,7 @@ function parse(input) {
 }
 
 exports.parse = parse;
-},{"../utils":121,"./ast":110,"./helpers":113,"./parser":115}],112:[function(require,module,exports){
+},{"../utils":124,"./ast":113,"./helpers":116,"./parser":118}],115:[function(require,module,exports){
 "use strict";
 var Exception = require("../exception")["default"];
 var isArray = require("../utils").isArray;
@@ -25780,7 +25892,7 @@ exports.compile = compile;function argEquals(a, b) {
     return true;
   }
 }
-},{"../exception":118,"../utils":121}],113:[function(require,module,exports){
+},{"../exception":121,"../utils":124}],116:[function(require,module,exports){
 "use strict";
 var Exception = require("../exception")["default"];
 
@@ -25968,7 +26080,7 @@ function omitLeft(statements, i, multiple) {
   current.leftStripped = current.string !== original;
   return current.leftStripped;
 }
-},{"../exception":118}],114:[function(require,module,exports){
+},{"../exception":121}],117:[function(require,module,exports){
 "use strict";
 var COMPILER_REVISION = require("../base").COMPILER_REVISION;
 var REVISION_CHANGES = require("../base").REVISION_CHANGES;
@@ -26933,7 +27045,7 @@ JavaScriptCompiler.isValidJavaScriptVariableName = function(name) {
 };
 
 exports["default"] = JavaScriptCompiler;
-},{"../base":109,"../exception":118}],115:[function(require,module,exports){
+},{"../base":112,"../exception":121}],118:[function(require,module,exports){
 "use strict";
 /* jshint ignore:start */
 /* istanbul ignore next */
@@ -27434,7 +27546,7 @@ function Parser () { this.yy = {}; }Parser.prototype = parser;parser.Parser = Pa
 return new Parser;
 })();exports["default"] = handlebars;
 /* jshint ignore:end */
-},{}],116:[function(require,module,exports){
+},{}],119:[function(require,module,exports){
 "use strict";
 var Visitor = require("./visitor")["default"];
 
@@ -27576,7 +27688,7 @@ PrintVisitor.prototype.content = function(content) {
 PrintVisitor.prototype.comment = function(comment) {
   return this.pad("{{! '" + comment.comment + "' }}");
 };
-},{"./visitor":117}],117:[function(require,module,exports){
+},{"./visitor":120}],120:[function(require,module,exports){
 "use strict";
 function Visitor() {}
 
@@ -27589,7 +27701,7 @@ Visitor.prototype = {
 };
 
 exports["default"] = Visitor;
-},{}],118:[function(require,module,exports){
+},{}],121:[function(require,module,exports){
 "use strict";
 
 var errorProps = ['description', 'fileName', 'lineNumber', 'message', 'name', 'number', 'stack'];
@@ -27618,7 +27730,7 @@ function Exception(message, node) {
 Exception.prototype = new Error();
 
 exports["default"] = Exception;
-},{}],119:[function(require,module,exports){
+},{}],122:[function(require,module,exports){
 "use strict";
 var Utils = require("./utils");
 var Exception = require("./exception")["default"];
@@ -27812,7 +27924,7 @@ exports.noop = noop;function initData(context, data) {
   }
   return data;
 }
-},{"./base":109,"./exception":118,"./utils":121}],120:[function(require,module,exports){
+},{"./base":112,"./exception":121,"./utils":124}],123:[function(require,module,exports){
 "use strict";
 // Build out our basic SafeString type
 function SafeString(string) {
@@ -27824,7 +27936,7 @@ SafeString.prototype.toString = function() {
 };
 
 exports["default"] = SafeString;
-},{}],121:[function(require,module,exports){
+},{}],124:[function(require,module,exports){
 "use strict";
 /*jshint -W004 */
 var SafeString = require("./safe-string")["default"];
@@ -27913,7 +28025,7 @@ exports.isEmpty = isEmpty;function appendContextPath(contextPath, id) {
 }
 
 exports.appendContextPath = appendContextPath;
-},{"./safe-string":120}],122:[function(require,module,exports){
+},{"./safe-string":123}],125:[function(require,module,exports){
 // USAGE:
 // var handlebars = require('handlebars');
 
@@ -27941,4 +28053,6 @@ if (typeof require !== 'undefined' && require.extensions) {
   require.extensions[".hbs"] = extension;
 }
 
-},{"../dist/cjs/handlebars":107,"../dist/cjs/handlebars/compiler/printer":116,"../dist/cjs/handlebars/compiler/visitor":117,"fs":8}]},{},[5]);
+},{"../dist/cjs/handlebars":110,"../dist/cjs/handlebars/compiler/printer":119,"../dist/cjs/handlebars/compiler/visitor":120,"fs":11}],126:[function(require,module,exports){
+module.exports=require(10)
+},{"/Users/alex/projects/dagify/node_modules/backbone/node_modules/underscore/underscore.js":10}]},{},[6]);

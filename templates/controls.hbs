@@ -1,0 +1,12 @@
+<form class="form-horizontal">
+  <div class="form-group">
+    <label class="control-label col-sm-4">{{rootName}}</label>
+    <div class="col-sm-8">
+      <select class="form-control" name="root">
+        {{#each roots}}
+          {{option . . ../currentRoot}}
+        {{/each}}
+      </select>
+    </div>
+  </div>
+</form>

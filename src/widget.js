@@ -1,11 +1,15 @@
 'use strict';
 
-var dagreD3 = require('dagre-d3');
 var Backbone = require('backbone');
+var _ = require('underscore');
 
+// Provides the default for the abstract methods needed to build a graph.
+var AbstractAPI = require('./widget/abstract-api');
+// Provides _renderGraph, _renderSummary, _updateGraph,
+// _getNode, _canReachCurrentRoot
+var PrivateAPI = require('./widget/private-api');
+// The Graph state model.
 var GraphState = require('./models/graph-state');
-var renderGraph = require('./d3/render-graph');
-var summaryTemplate = require('./templates/graph.summary');
 
 var Nodes = Backbone.Collection.extend({
   model: Backbone.Model
@@ -14,109 +18,50 @@ var Edges = Backbone.Collection.extend({
   model: Backbone.Model
 });
 
-function Widget (data) {
+// Initialises the three state properties:
+//   * graphState :: Model
+//   * nodes :: Collection
+//   * edges :: Collection
+var Widget = module.exports = function Widget (data) {
   this.graphState = new GraphState();
   this.nodes = new Nodes(data.nodes);
   this.edges = new Edges(data.edges);
 
-  this.graphState.on('change', function () {
-    this._updateGraph();
-  }.bind(this));
-  this.nodes.on('add remove reset', function () {
-    this._updateGraph();
-    this._renderSummary();
-  }.bind(this));
-  this.edges.on('add remove reset', function () {
-    this._updateGraph();
-    this._renderSummary();
-  }.bind(this));
-}
+  this.listenTo(this.graphState, 'change', this.update);
+  this.listenTo(this.nodes, 'add remove reset', this.update);
+  this.listenTo(this.edges, 'add remove reset', this.update);
+};
 
-module.exports = Widget;
-
-// Assumes nodes are: {label, id}
-function simpleGetLabel (obj) {
-  return obj.label;
-}
-function defaultGetNodeID (node) {
-  return node.id;
-}
-// Assumes edges are: {label, source, target}
-function defaultGetEdgeSource (edge) {
-  return edge.source;
-}
-function defaultGetEdgeTarget (edge) {
-  return edge.target;
-}
-// Nodes by default have 2px rounded corners.
-function createBaseNode (node) {
-  return {rx: 2, ry: 2};
-}
-// Edges by default have no data.
-function createBaseEdge () {
-  return {};
-}
-
-Widget.prototype = {
-  // All these methods can/should be replaced with more specific implementations
-  // depending on the shape of the incoming data.
-  getNodeID: defaultGetNodeID,
-  getEdgeSource: defaultGetEdgeSource,
-  getEdgeTarget: defaultGetEdgeTarget,
-  getNodeLabel: simpleGetLabel,
-  getEdgeLabel: simpleGetLabel,
-  getBaseNode: createBaseNode,
-  getBaseEdge: createBaseEdge,
-
-  buildGraph: function () {
-    var self = this
-      , graph = new dagreD3.graphlib.Graph();
-
-    graph.setGraph(this.graphState.toJSON());
-
-    this.nodes.each(function (model) {
-      var node = model.toJSON();
-      var nodeID = self.getNodeID(node);
-      var nodeData = self.getBaseNode(node);
-      nodeData.label = self.getNodeLabel(node);
-      graph.setNode(nodeID, nodeData);
-    });
-    this.edges.each(function (model) {
-      var edge = model.toJSON();
-      var sourceId = self.getEdgeSource(edge);
-      var targetId = self.getEdgeTarget(edge);
-      var edgeData = self.getBaseEdge();
-      edgeData.label = self.getEdgeLabel(edge);
-      graph.setEdge(sourceId, targetId, edgeData);
-    });
-    return graph;
-  },
-
-  render: function () {
-    this._renderGraph();
-    this._renderSummary();
-  },
-
-  // Private - these methods are not part of the public API
-  _renderSummary: function () {
-    if (this.summaryElement) {
-      this.summaryElement.innerHTML = summaryTemplate({
-        edgeCount: this.edges.size(),
-        nodeCount: this.nodes.size()
-      });
-    }
-  },
-
-  _updateGraph: function () {
-    if (this._update) {
-      this._update(this.buildGraph());
-    }
-  },
-
-  _renderGraph: function () {
-    if (this.graphElement) {
-      this._update = renderGraph(this.graphElement, this.buildGraph());
+Widget.prototype = _.extend(
+  {
+    eachNode: function (forEach) {
+      var filter = this._canReachCurrentRoot();
+      this.nodes
+          .filter(filter)
+          .forEach(forEach);
+    },
+    eachEdge: function (forEach) {
+      var canReach = this._canReachCurrentRoot();
+      var filter = function (edge) {
+        var data = edge.toJSON();
+        var source = this._getNode(this.getEdgeSource(data));
+        var target = this._getNode(this.getEdgeTarget(data));
+        return _.any([source, target], canReach);
+      }.bind(this);
+      this.edges
+          .filter(filter)
+          .forEach(forEach);
+    },
+    update: function () {
+      this._updateGraph();
+      this._renderSummary();
+    }, 
+    render: function () {
+      this._renderGraph();
+      this._renderSummary();
     }
   }
-
-};
+  , AbstractAPI
+  , PrivateAPI
+  , Backbone.Events // Mixins..
+);

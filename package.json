@@ -53,6 +53,7 @@
     "opn": "^0.1.1",
     "serve-index": "^1.1.4",
     "serve-static": "^1.4.0",
+    "underscore": "^1.7.0",
     "underscore.string": "^2.3.3",
     "vinyl-transform": "0.0.1",
     "wiredep": "^1.4.3"

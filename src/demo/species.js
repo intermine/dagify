@@ -1,13 +1,40 @@
 'use strict';
 
 var Widget = require('../widget');
+var Backbone = require('backbone');
+var ControlsView = require('../views/controls');
 var graph = require('./fixtures/species');
 
-function load (container, summary) {
+function load (container, summary, controls) {
   var widget = new Widget(graph);
-  widget.graphState.set({rankdir: 'tb'});
   widget.graphElement = container;
   widget.summaryElement = summary;
+
+  widget.graphState.set({
+    rankdir: 'tb',
+    rootName: 'evolutionary tree',
+    currentRoot: null,
+    roots: []
+  });
+  widget.on('change:graph', function (graph) {
+    var currentRoot = graph.graph().currentRoot;
+    if (!currentRoot) { // Only want to know about whole graph.
+      var sinks = graph.sinks();
+      var roots = widget.graphState.get('roots');
+      if (sinks.sort().join('') !== roots.sort().join('')) {
+        widget.graphState.set({roots: sinks});
+      }
+    }
+  });
+  widget.graphState.on('change:currentRoot', function (m, v) {
+    console.log('root', v);
+  });
+
+  var graphControls = new ControlsView({
+    model: widget.graphState,
+    el: controls
+  });
+  graphControls.render();
 
   widget.getNodeLabel = function (node) {
     if (node.status === 'common_ancestor') {

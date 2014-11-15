@@ -13,7 +13,7 @@ var routes = {
 };
 
 // Propagate jQuery.
-Backbone.$ = window.jQuery;
+Backbone.$ = (window.jQuery || window.Zepto);
 
 function main () {
   var header    = document.querySelector('.app > .header')
@@ -29,6 +29,8 @@ function main () {
   state.on('change:page', function () {
     var page = state.get('page');
     var heading = document.querySelector('.app > .jumbotron h2');
+    summary.innerHTML = '';
+    controls.innerHTML = '';
     if (page in routes) {
       heading.innerHTML = string.capitalize(page);
       routes[page](container, summary, controls);
