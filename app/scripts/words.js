@@ -166,7 +166,7 @@ function defaultGetEdgeTarget (edge) {
   return edge.target;
 }
 // Nodes by default have 2px rounded corners.
-function createBaseNode () {
+function createBaseNode (node) {
   return {rx: 2, ry: 2};
 }
 // Edges by default have no data.
@@ -194,7 +194,7 @@ Widget.prototype = {
     this.nodes.each(function (model) {
       var node = model.toJSON();
       var nodeID = self.getNodeID(node);
-      var nodeData = self.getBaseNode();
+      var nodeData = self.getBaseNode(node);
       nodeData.label = self.getNodeLabel(node);
       graph.setNode(nodeID, nodeData);
     });
