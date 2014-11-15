@@ -453,7 +453,7 @@ module.exports = load;
 
 },{"../templates/fallback":15}],13:[function(require,module,exports){
 var Handlebars = require("handlebars");module.exports = Handlebars.template({"compiler":[6,">= 2.0.0-beta.1"],"main":function(depth0,helpers,partials,data) {
-  return "<dl class=\"dl-horizontal\">\n\n  <dt>Email</dt>\n  <dd><a href=\"mailto:alex@intermine.org\">alex@intermine.org</a></dd>\n\n  <dt>Code<dt>\n  <dd><a href=\"https://github.com/alexkalderimis/dagify\">alexkalderimis/dagify</a></dd>\n\n</dl>\n\n";
+  return "<dl class=\"dl-horizontal\">\n\n  <dt>Email</dt>\n  <dd><a href=\"mailto:alex@intermine.org\">alex@intermine.org</a></dd>\n\n  <dt>Code<dt>\n  <dd><a href=\"https://github.com/intermine/dagify\">intermine/dagify</a></dd>\n\n</dl>\n\n";
   },"useData":true});
 },{"handlebars":140}],14:[function(require,module,exports){
 var Handlebars = require("handlebars");module.exports = Handlebars.template({"1":function(depth0,helpers,partials,data,depths) {
