@@ -110,9 +110,7 @@ gulp.task('serve', ['connect'], function () {
 // inject bower components
 gulp.task('wiredep', function () {
   gulp.src('app/*.html')
-    .pipe(wiredep({
-      directory: 'bower_components'
-    }))
+    .pipe(wiredep())
     .pipe(gulp.dest('app'));
 });
 
@@ -145,7 +143,7 @@ gulp.task('browserify', ['compile', 'templates'], function () {
     .pipe(gulp.dest('./app/scripts'));
 });
 
-gulp.task('build', ['jshint', 'images', 'fonts', 'extras', 'browserify'], function () {
+gulp.task('build', ['jshint', 'images', 'fonts', 'extras', 'browserify', 'wiredep'], function () {
   return gulp.src('dist/**/*').pipe($.size({title: 'build', gzip: true}));
 });
 

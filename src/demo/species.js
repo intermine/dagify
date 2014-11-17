@@ -1,7 +1,6 @@
 'use strict';
 
 var Widget = require('../widget');
-var Backbone = require('backbone');
 var ControlsView = require('../views/controls');
 var graph = require('./fixtures/species');
 
@@ -47,7 +46,7 @@ function load (container, summary, controls) {
   };
   widget.getBaseNode = function (node) {
     if (node.status === 'common_ancestor') {
-      return {rx: 12, ry: 12, width: 4, height: 4};
+      return {rx: 2, ry: 2, padding: 2};
     } else {
       var n = {rx: 2, ry: 2};
       if (node.status === 'extant') {

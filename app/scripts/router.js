@@ -6242,7 +6242,7 @@ if (typeof require !== 'undefined' && require.extensions) {
 //  Underscore.string is freely distributable under the terms of the MIT license.
 //  Documentation: https://github.com/epeli/underscore.string
 //  Some code is borrowed from MooTools and Alexandru Marasteanu.
-//  Version '2.4.0'
+//  Version '2.3.2'
 
 !function(root, String){
   'use strict';
@@ -6428,7 +6428,7 @@ if (typeof require !== 'undefined' && require.extensions) {
 
   var _s = {
 
-    VERSION: '2.4.0',
+    VERSION: '2.3.0',
 
     isBlank: function(str){
       if (str == null) str = '';
@@ -6588,7 +6588,7 @@ if (typeof require !== 'undefined' && require.extensions) {
     },
 
     classify: function(str){
-      return _s.capitalize(_s.camelize(String(str).replace(/[\W_]/g, ' ')).replace(/\s/g, ''));
+      return _s.titleize(String(str).replace(/[\W_]/g, ' ')).replace(/\s/g, '');
     },
 
     humanize: function(str){
@@ -6599,7 +6599,7 @@ if (typeof require !== 'undefined' && require.extensions) {
       if (str == null) return '';
       if (!characters && nativeTrim) return nativeTrim.call(str);
       characters = defaultToWhiteSpace(characters);
-      return String(str).replace(new RegExp('^' + characters + '+|' + characters + '+$', 'g'), '');
+      return String(str).replace(new RegExp('\^' + characters + '+|' + characters + '+$', 'g'), '');
     },
 
     ltrim: function(str, characters){

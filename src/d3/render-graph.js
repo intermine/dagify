@@ -35,14 +35,19 @@ module.exports = function (element, graph) {
   // Center the graph
   var initialScale = 0.75;
   var meta = graph.graph();
+  var center = function () {
+    var meta = graph.graph();
+    var x = (svg.attr('width') - meta.width * initialScale) / 2;
+    return zoom.translate([x, 20])
+               .scale(initialScale);
+  };
   svg.attr('width', element.getBoundingClientRect().width);
-  zoom.translate([(svg.attr('width') - meta.width * initialScale) / 2, 20])
-    .scale(initialScale)
-    .event(svg);
   svg.attr('height', meta.height * initialScale + 40);
+  center().event(svg);
 
   // Return a function to update this rendered representation.
   return function update (graph) {
     render(inner, graph);
+    center().event(svg.transition().duration(500));
   };
 };

@@ -36,15 +36,20 @@ module.exports = function (element, graph) {
   // Center the graph
   var initialScale = 0.75;
   var meta = graph.graph();
+  var center = function () {
+    var meta = graph.graph();
+    var x = (svg.attr('width') - meta.width * initialScale) / 2;
+    return zoom.translate([x, 20])
+               .scale(initialScale);
+  };
   svg.attr('width', element.getBoundingClientRect().width);
-  zoom.translate([(svg.attr('width') - meta.width * initialScale) / 2, 20])
-    .scale(initialScale)
-    .event(svg);
   svg.attr('height', meta.height * initialScale + 40);
+  center().event(svg);
 
   // Return a function to update this rendered representation.
   return function update (graph) {
     render(inner, graph);
+    center().event(svg.transition().duration(500));
   };
 };
 
@@ -237,19 +242,23 @@ var renderGraph = require('../d3/render-graph');
 var summaryTemplate = require('../templates/graph.summary');
 var buildGraph = require('../logic/build-graph');
 
+var asData = function (model) {
+  return model.toJSON();
+};
+
 // Private - these methods are not part of the public API
 module.exports = {
 
   _getNode: function (nid) {
     return this.nodes.find(function (node) {
-      return this.getNodeID(node.toJSON()) === nid;
+      return this.getNodeID(asData(node)) === nid;
     }.bind(this));
   },
 
   _getParentsOf: function (nid) {
     var parents = [];
     this.edges.each(function (edge) {
-      var data = edge.toJSON();
+      var data = asData(edge);
       var node = this.getEdgeSource(data);
       var parent = this.getEdgeTarget(data);
       if (node === nid) {
@@ -268,21 +277,21 @@ module.exports = {
     // getNode :: (nid) -> NodeModel
     var getNode = this._getNode.bind(this);
     // getID :: (NodeModel) -> nid
-    var getID = _.compose(this.getNodeID, function (nm) { return nm.toJSON() });
+    var getID = _.compose(this.getNodeID, asData);
 
     // _canReach :: (NodeModel) -> bool
     var _canReach = function (node) {
       var nid = getID(node);
-      if (nid in cache) {
-        return cache[nid];
+      if (!(nid in cache)) {
+        // parents :: [nid]
+        var parents = this._getParentsOf(nid);
+        if (_.include(parents, currentRoot)) {
+          cache[nid] = true;
+        } else {
+          cache[nid] = _.any(parents.map(getNode), _canReach);
+        }
       }
-      // parents :: [nid]
-      var parents = this._getParentsOf(nid);
-      if (_.include(parents, currentRoot)) {
-        return cache[nid] = true;
-      } else {
-        return cache[nid] = _.any(parents.map(getNode), _canReach);
-      }
+      return cache[nid];
     }.bind(this);
     return _canReach;
   },
@@ -13913,7 +13922,7 @@ function debugOrdering(g) {
 
 },{"./graphlib":45,"./lodash":48,"./util":67}],45:[function(require,module,exports){
 module.exports=require(21)
-},{"/Users/alex/projects/dagify/node_modules/dagre-d3/lib/graphlib.js":21,"graphlib":69}],46:[function(require,module,exports){
+},{"/home/alex/projects/js/dagify/node_modules/dagre-d3/lib/graphlib.js":21,"graphlib":69}],46:[function(require,module,exports){
 var _ = require("./lodash"),
     Graph = require("./graphlib").Graph,
     List = require("./data/list");
@@ -14429,7 +14438,7 @@ function canonicalize(attrs) {
 
 },{"./acyclic":40,"./add-border-segments":41,"./coordinate-system":42,"./graphlib":45,"./lodash":48,"./nesting-graph":49,"./normalize":50,"./order":55,"./parent-dummy-chains":60,"./position":62,"./rank":64,"./util":67}],48:[function(require,module,exports){
 module.exports=require(32)
-},{"/Users/alex/projects/dagify/node_modules/dagre-d3/lib/lodash.js":32,"lodash":109}],49:[function(require,module,exports){
+},{"/home/alex/projects/js/dagify/node_modules/dagre-d3/lib/lodash.js":32,"lodash":109}],49:[function(require,module,exports){
 var _ = require("./lodash"),
     util = require("./util");
 
@@ -17602,40 +17611,40 @@ function read(json) {
 
 },{"./graph":84,"./lodash":87}],87:[function(require,module,exports){
 module.exports=require(32)
-},{"/Users/alex/projects/dagify/node_modules/dagre-d3/lib/lodash.js":32,"lodash":109}],88:[function(require,module,exports){
+},{"/home/alex/projects/js/dagify/node_modules/dagre-d3/lib/lodash.js":32,"lodash":109}],88:[function(require,module,exports){
 module.exports = '1.0.1';
 
 },{}],89:[function(require,module,exports){
 arguments[4][69][0].apply(exports,arguments)
-},{"./lib":105,"./lib/alg":96,"./lib/json":106,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/index.js":69}],90:[function(require,module,exports){
+},{"./lib":105,"./lib/alg":96,"./lib/json":106,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/index.js":69}],90:[function(require,module,exports){
 module.exports=require(70)
-},{"../lodash":107,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/components.js":70}],91:[function(require,module,exports){
+},{"../lodash":107,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/components.js":70}],91:[function(require,module,exports){
 module.exports=require(71)
-},{"../lodash":107,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/dfs.js":71}],92:[function(require,module,exports){
+},{"../lodash":107,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/dfs.js":71}],92:[function(require,module,exports){
 module.exports=require(72)
-},{"../lodash":107,"./dijkstra":93,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/dijkstra-all.js":72}],93:[function(require,module,exports){
+},{"../lodash":107,"./dijkstra":93,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/dijkstra-all.js":72}],93:[function(require,module,exports){
 module.exports=require(73)
-},{"../data/priority-queue":103,"../lodash":107,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/dijkstra.js":73}],94:[function(require,module,exports){
+},{"../data/priority-queue":103,"../lodash":107,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/dijkstra.js":73}],94:[function(require,module,exports){
 module.exports=require(74)
-},{"../lodash":107,"./tarjan":101,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/find-cycles.js":74}],95:[function(require,module,exports){
+},{"../lodash":107,"./tarjan":101,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/find-cycles.js":74}],95:[function(require,module,exports){
 module.exports=require(75)
-},{"../lodash":107,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/floyd-warshall.js":75}],96:[function(require,module,exports){
+},{"../lodash":107,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/floyd-warshall.js":75}],96:[function(require,module,exports){
 arguments[4][76][0].apply(exports,arguments)
-},{"./components":90,"./dijkstra":93,"./dijkstra-all":92,"./find-cycles":94,"./floyd-warshall":95,"./is-acyclic":97,"./postorder":98,"./preorder":99,"./prim":100,"./tarjan":101,"./topsort":102,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/index.js":76}],97:[function(require,module,exports){
+},{"./components":90,"./dijkstra":93,"./dijkstra-all":92,"./find-cycles":94,"./floyd-warshall":95,"./is-acyclic":97,"./postorder":98,"./preorder":99,"./prim":100,"./tarjan":101,"./topsort":102,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/index.js":76}],97:[function(require,module,exports){
 module.exports=require(77)
-},{"./topsort":102,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/is-acyclic.js":77}],98:[function(require,module,exports){
+},{"./topsort":102,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/is-acyclic.js":77}],98:[function(require,module,exports){
 module.exports=require(78)
-},{"./dfs":91,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/postorder.js":78}],99:[function(require,module,exports){
+},{"./dfs":91,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/postorder.js":78}],99:[function(require,module,exports){
 module.exports=require(79)
-},{"./dfs":91,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/preorder.js":79}],100:[function(require,module,exports){
+},{"./dfs":91,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/preorder.js":79}],100:[function(require,module,exports){
 arguments[4][80][0].apply(exports,arguments)
-},{"../data/priority-queue":103,"../graph":104,"../lodash":107,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/prim.js":80}],101:[function(require,module,exports){
+},{"../data/priority-queue":103,"../graph":104,"../lodash":107,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/prim.js":80}],101:[function(require,module,exports){
 module.exports=require(81)
-},{"../lodash":107,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/tarjan.js":81}],102:[function(require,module,exports){
+},{"../lodash":107,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/tarjan.js":81}],102:[function(require,module,exports){
 module.exports=require(82)
-},{"../lodash":107,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/topsort.js":82}],103:[function(require,module,exports){
+},{"../lodash":107,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/alg/topsort.js":82}],103:[function(require,module,exports){
 module.exports=require(83)
-},{"../lodash":107,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/data/priority-queue.js":83}],104:[function(require,module,exports){
+},{"../lodash":107,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/data/priority-queue.js":83}],104:[function(require,module,exports){
 "use strict";
 
 var _ = require("./lodash");
@@ -18098,11 +18107,11 @@ function edgeObjToId(isDirected, edgeObj) {
 
 },{"./lodash":107}],105:[function(require,module,exports){
 arguments[4][85][0].apply(exports,arguments)
-},{"./graph":104,"./version":108,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/index.js":85}],106:[function(require,module,exports){
+},{"./graph":104,"./version":108,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/index.js":85}],106:[function(require,module,exports){
 arguments[4][86][0].apply(exports,arguments)
-},{"./graph":104,"./lodash":107,"/Users/alex/projects/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/json.js":86}],107:[function(require,module,exports){
+},{"./graph":104,"./lodash":107,"/home/alex/projects/js/dagify/node_modules/dagre-d3/node_modules/dagre/node_modules/graphlib/lib/json.js":86}],107:[function(require,module,exports){
 module.exports=require(32)
-},{"/Users/alex/projects/dagify/node_modules/dagre-d3/lib/lodash.js":32,"lodash":109}],108:[function(require,module,exports){
+},{"/home/alex/projects/js/dagify/node_modules/dagre-d3/lib/lodash.js":32,"lodash":109}],108:[function(require,module,exports){
 module.exports = '0.9.1';
 
 },{}],109:[function(require,module,exports){
@@ -28055,4 +28064,4 @@ if (typeof require !== 'undefined' && require.extensions) {
 
 },{"../dist/cjs/handlebars":110,"../dist/cjs/handlebars/compiler/printer":119,"../dist/cjs/handlebars/compiler/visitor":120,"fs":11}],126:[function(require,module,exports){
 module.exports=require(10)
-},{"/Users/alex/projects/dagify/node_modules/backbone/node_modules/underscore/underscore.js":10}]},{},[6]);
+},{"/home/alex/projects/js/dagify/node_modules/backbone/node_modules/underscore/underscore.js":10}]},{},[6]);
