@@ -36,7 +36,7 @@ module.exports = function buildGraph (widget) {
 		var edge = model.toJSON();
 		var sourceId = widget.getEdgeSource(edge);
 		var targetId = widget.getEdgeTarget(edge);
-		var edgeData = widget.getBaseEdge();
+		var edgeData = widget.getBaseEdge(edge);
 		edgeData.label = widget.getEdgeLabel(edge);
 		graph.setEdge(sourceId, targetId, edgeData);
 	});

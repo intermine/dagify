@@ -30,6 +30,8 @@ module.exports = function (element, graph) {
   // Create the renderer
   var render = new dagreD3.render();
 
+  render.arrows().none = function () {}; // Edges without arrows.
+
   // Run the renderer. This is what draws the final graph.
   render(inner, graph);
 
@@ -92,7 +94,7 @@ module.exports = function buildGraph (widget) {
 		var edge = model.toJSON();
 		var sourceId = widget.getEdgeSource(edge);
 		var targetId = widget.getEdgeTarget(edge);
-		var edgeData = widget.getBaseEdge();
+		var edgeData = widget.getBaseEdge(edge);
 		edgeData.label = widget.getEdgeLabel(edge);
 		graph.setEdge(sourceId, targetId, edgeData);
 	});

@@ -55,6 +55,12 @@ function load (container, summary, controls) {
       return n;
     }
   };
+  widget.getBaseEdge = function (edge) {
+    if (edge.ancestor.status === 'common_ancestor') {
+      return {arrowhead: 'none'};
+    }
+    return {arrowhead: 'vee'};
+  };
   widget.getEdgeSource = function (edge) {
     return edge.subject.name;
   };

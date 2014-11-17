@@ -29,6 +29,8 @@ module.exports = function (element, graph) {
   // Create the renderer
   var render = new dagreD3.render();
 
+  render.arrows().none = function () {}; // Edges without arrows.
+
   // Run the renderer. This is what draws the final graph.
   render(inner, graph);
 

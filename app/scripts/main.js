@@ -30,6 +30,8 @@ module.exports = function (element, graph) {
   // Create the renderer
   var render = new dagreD3.render();
 
+  render.arrows().none = function () {}; // Edges without arrows.
+
   // Run the renderer. This is what draws the final graph.
   render(inner, graph);
 
@@ -224,6 +226,12 @@ function load (container, summary, controls) {
       return n;
     }
   };
+  widget.getBaseEdge = function (edge) {
+    if (edge.ancestor.status === 'common_ancestor') {
+      return {arrowhead: 'none'};
+    }
+    return {arrowhead: 'vee'};
+  };
   widget.getEdgeSource = function (edge) {
     return edge.subject.name;
   };
@@ -327,7 +335,7 @@ module.exports = function buildGraph (widget) {
 		var edge = model.toJSON();
 		var sourceId = widget.getEdgeSource(edge);
 		var targetId = widget.getEdgeTarget(edge);
-		var edgeData = widget.getBaseEdge();
+		var edgeData = widget.getBaseEdge(edge);
 		edgeData.label = widget.getEdgeLabel(edge);
 		graph.setEdge(sourceId, targetId, edgeData);
 	});
