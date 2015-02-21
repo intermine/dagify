@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "description": "webapp",
   "license": "MIT",
-  "main": "app/index.js",
+  "main": "build/widget.js",
   "repository": "alexkalderimis/dagify",
   "author": {
     "name": "Alex Kalderimis",
