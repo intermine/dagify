@@ -84,11 +84,14 @@ gulp.task('extras', function () {
 
 gulp.task('clean', require('del').bind(null, ['.tmp', 'build', 'dist']));
 
+var port = (process.env.PORT || 9000);
+var liveReloadPort = (process.env.LIVE_RL_PORT || 35729);
+
 gulp.task('connect', function () {
   var serveStatic = require('serve-static');
   var serveIndex = require('serve-index');
   var app = require('connect')()
-    .use(require('connect-livereload')({port: 35729}))
+    .use(require('connect-livereload')({port: liveReloadPort}))
     .use(serveStatic('app'))
     .use(serveStatic('.tmp'))
     // paths to bower_components should be relative to the current file
@@ -97,14 +100,14 @@ gulp.task('connect', function () {
     .use(serveIndex('app'));
 
   require('http').createServer(app)
-    .listen(9000)
+    .listen(port)
     .on('listening', function () {
-      console.log('Started connect web server on http://localhost:9000');
+      console.log('Started connect web server on http://localhost:' + port);
     });
 });
 
 gulp.task('serve', ['connect'], function () {
-  require('opn')('http://localhost:9000');
+  require('opn')('http://localhost:' + port);
 });
 
 // inject bower components
