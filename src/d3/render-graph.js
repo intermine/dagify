@@ -1,5 +1,10 @@
 'use strict';
 
+/**
+ * Render the graph to an element, and supply a function that
+ * can be used to update the graph.
+ */
+
 var d3 = require('d3');
 var dagreD3 = require('dagre-d3');
 var template = require('../templates/graph.container');
@@ -13,6 +18,8 @@ function getZoomHandler (selection) {
     selection.attr('transform', getZoomTranslation(d3.event));
   };
 }
+
+var UNDIRECTED = function () {};
 
 module.exports = function (element, graph) {
   element.innerHTML = template();
@@ -29,7 +36,8 @@ module.exports = function (element, graph) {
   // Create the renderer
   var render = new dagreD3.render();
 
-  render.arrows().none = function () {}; // Edges without arrows.
+  // Register an undirected arrow (ie. one without a point).
+  render.arrows().none = UNDIRECTED;
 
   // Run the renderer. This is what draws the final graph.
   render(inner, graph);
