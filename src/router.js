@@ -1,9 +1,10 @@
 'use strict';
 
+var _ = require('underscore');
 var Backbone = require('backbone');
 var string = require('underscore.string');
 
-var Router = Backbone.View.extend({
+var Router = module.exports = Backbone.View.extend({
   initialize: function () {
     this.listenTo(this.model, 'change:page', this.changeTabState);
   },
@@ -14,19 +15,23 @@ var Router = Backbone.View.extend({
     this.$('li').removeClass('active');
     this.$('li.' + page).addClass('active');
   },
+  setPage: function (page) {
+    this.model.set({page: page});
+  },
   events: function () {
-    var events = {};
-    var state = this.model;
-    this.sections.forEach(function (page) {
-      events['click li.' + page] = state.set.bind(state, {page: page});
-    });
-    return events;
+    var self = this;
+    return _.object(this.sections.map(function (page) {
+      return ['click li.' + page, self.setPage.bind(self, page)];
+    }));
+  },
+  data: function () {
+    return {sections: this.sections.map(sectionData)}
   },
   render: function () {
-    this.$el.html(this.template({sections: this.sections.map(function (s) {
-      return {id: s, name: string.capitalize(s)};
-    })}));
+    this.$el.html(this.template(this.data()));
   }
 });
 
-module.exports = Router;
+function sectionData (s) {
+  return {id: s, name: string.capitalize(s)};
+}
