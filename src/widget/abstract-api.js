@@ -1,5 +1,12 @@
 'use strict';
 
+/*
+ * These are the default values for the methods that may
+ * be overriden/re-implemented on the widgets. As such they
+ * define useful defaults, but won't be applicable for every
+ * use case.
+ */
+
 // Assumes nodes are: {label, id}
 function simpleGetLabel (obj) {
   return obj.label;

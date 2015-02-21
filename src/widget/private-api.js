@@ -1,6 +1,7 @@
 'use strict';
 
 var _ = require('underscore');
+// A function that renders a graph and returns a function to update it.
 var renderGraph = require('../d3/render-graph');
 var summaryTemplate = require('../templates/graph.summary');
 var buildGraph = require('../logic/build-graph');
