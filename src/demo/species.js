@@ -52,10 +52,13 @@ var SpeciesWidget = {
 };
 
 module.exports = function load (container, summary, controls) {
-  var data = {opts: opts,nodes: graph.nodes,edges: graph.edges};
-  var widget = new Widget(data, SpeciesWidget);
-  widget.graphElement = container;
-  widget.summaryElement = summary;
+  var widget = new Widget({
+    opts: opts,
+    nodes: graph.nodes,
+    edges: graph.edges,
+    el: container,
+    summaryEl: summary
+  }, SpeciesWidget);
 
   widget.on('change:graph', function (graph) {
     var currentRoot = graph.graph().currentRoot;

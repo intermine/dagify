@@ -26,12 +26,19 @@ var Edges = Backbone.Collection.extend({
 //   * edges :: Collection
 // Injects methods onto the object - Feel free to subclass.
 var Widget = module.exports = function Widget (data, methods) {
-  if (methods) {
-    _.extend(this, methods);
+  if (!(this instanceof Widget)) return new Widget(data, methods);
+
+  if (methods) _.extend(this, _.pick(methods, _.keys(AbstractAPI)));
+  this.graphState = new GraphState(data && data.opts);
+  this.nodes = new Nodes(data && data.nodes);
+  this.edges = new Edges(data && data.edges);
+
+  if (data && data.el) {
+    this.setElement(data.el);
   }
-  this.graphState = new GraphState(data.opts);
-  this.nodes = new Nodes(data.nodes);
-  this.edges = new Edges(data.edges);
+  if (data && data.summaryEl) {
+    this.setSummaryElement(data.summaryEl);
+  }
 
   this.listenTo(this.graphState, 'change', this.update);
   this.listenTo(this.nodes, 'add remove reset', this.update);
@@ -40,7 +47,16 @@ var Widget = module.exports = function Widget (data, methods) {
 
 // The methods of Widget
 Widget.prototype = _.extend(
-  {
+  { // The public API of this widget:
+
+    // Set the main element.
+    setElement: function (el) {
+      this.graphElement = getElement(el);
+    },
+    // Set the summary element.
+    setSummaryElement: function (el) {
+      this.summaryElement = getElement(el);
+    },
     // Traverse nodes.
     eachNode: function (forEach) {
       var filter = this._canReachCurrentRoot();
@@ -76,3 +92,11 @@ Widget.prototype = _.extend(
   , PrivateAPI
   , Backbone.Events // Mixins..
 );
+
+function getElement (elOrSelector) {
+  if (_.isString(elOrSelector)) {
+    return document.querySelector(elOrSelector);
+  } else {
+    return elOrSelector;
+  }
+}
