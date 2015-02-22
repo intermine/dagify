@@ -1,6 +1,6 @@
 # Dagify
 
-Spaghetti in your browser.
+A tool for displaying hierarchical graph data.
 
 ## Installation
 
