@@ -25,8 +25,8 @@ var Edges = Backbone.Collection.extend({
 //   * nodes :: Collection
 //   * edges :: Collection
 // Injects methods onto the object - Feel free to subclass.
-var Widget = module.exports = function Widget (data, methods) {
-  if (!(this instanceof Widget)) return new Widget(data, methods);
+var DagWidget = module.exports = function Widget (data, methods) {
+  if (!(this instanceof DagWidget)) return new Widget(data, methods);
 
   if (methods) _.extend(this, _.pick(methods, _.keys(AbstractAPI)));
   this.graphState = new GraphState(data && data.opts);
@@ -46,8 +46,9 @@ var Widget = module.exports = function Widget (data, methods) {
 };
 
 // The methods of Widget
-Widget.prototype = _.extend(
-  { // The public API of this widget:
+_.extend(DagWidget.prototype, {
+
+    // The public API of this widget:
 
     // Set the main element.
     setElement: function (el) {
