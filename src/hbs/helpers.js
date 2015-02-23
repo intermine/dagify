@@ -3,11 +3,11 @@
 var Handlebars = require('handlebars');
 
 function optionHelper (value, label, selectedValue) {
-  var prop = (value === selectedValue) ? 'selected="selected"' : '';
+  var prop = (value === selectedValue) ? ' selected' : '';
+  var val = Handlebars.Utils.escapeExpression(value);
+  var content = Handlebars.Utils.escapeExpression(label);
   return new Handlebars.SafeString(
-    '<option value="' + value + '"' + prop + '>' +
-    label +
-    '</option>'
+    '<option value="' + val + '"' + prop + '>' + content + '</option>'
   );
 }
 
