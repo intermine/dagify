@@ -43,7 +43,7 @@ module.exports = function (element, graph) {
   render(inner, graph);
 
   // Center the graph
-  var initialScale = 0.75;
+  var initialScale = 0.7;
   var meta = graph.graph();
   var center = function () {
     var meta = graph.graph();
@@ -51,7 +51,7 @@ module.exports = function (element, graph) {
     return zoom.translate([x, 20])
                .scale(initialScale);
   };
-  svg.attr('width', element.getBoundingClientRect().width);
+  svg.attr('width', element.getBoundingClientRect().width - 20);
   svg.attr('height', meta.height * initialScale + 40);
   center().event(svg);
 
