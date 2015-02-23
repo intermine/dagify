@@ -89,8 +89,8 @@ _.extend(DagWidget.prototype, {
       this._renderSummary();
     }
   }
-  , AbstractAPI
-  , PrivateAPI
+  , AbstractAPI // The default callbacks.
+  , PrivateAPI  // The methods clients should not care about.
   , Backbone.Events // Mixins..
 );
 
