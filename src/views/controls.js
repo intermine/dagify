@@ -19,14 +19,22 @@ var ControlsView = BaseView.extend({
     'change [name=rankdir]': 'changeLayout'
   },
   data: function () {
-    return _.extend({layouts: layouts}, this.model.toJSON());
+    return _.extend(this.model.toJSON(), {
+      layouts: layouts,
+      roots: this.getRoots()
+    });
+  },
+  getRoots: function () {
+    return [{label: ':all', value: null}].concat(this.model.get('roots').map(function (r) {
+      return {label: r, value: r};
+    }));
   },
   changeLayout: function (event) {
-    var rankdir = this.$(event.target).val();
+    var rankdir = event.target.value;
     this.model.set({rankdir: rankdir});
   },
   changeCurrentRoot: function (event) {
-    var currentRoot = this.$(event.target).val();
+    var currentRoot = event.target.value;
     this.model.set({currentRoot: currentRoot});
   }
 });
