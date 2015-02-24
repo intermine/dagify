@@ -1,6 +1,11 @@
 .node rect {
     stroke: #333;
-    fill: #fff;
+    fill: rgba(124, 148, 163, 0.6);
+}
+
+.node .label text {
+    fill: rgb(2, 34, 54);
+    text-rendering: optimizeLegibility;
 }
 
 .edgePath path {
@@ -11,11 +16,12 @@
 
 .grid-line {
   fill: none;
-  stroke: #eee;
+  stroke: #dedede;
   stroke-width: 1;
 }
 
 .grid-line.thin {
   stroke-width: 0.5;
 }
+
 
