@@ -7,8 +7,6 @@
     <title>dagify</title>
     <!-- Place favicon.ico and apple-touch-icon.png in the root directory -->
 
-    <link rel="stylesheet" href="styles/svg.css">
-
     <!--- Injected elements -->
 
     <!-- bower:css -->
@@ -22,27 +20,32 @@
     <script src="bower_components/bootstrap/dist/js/bootstrap.js"></script>
     <!-- endbower -->
 
+    <link rel="stylesheet" href="styles/svg.css">
+    <link rel="stylesheet" href="styles/main.css">
+
   </head>
   <body>
     <!--[if lt IE 10]>
       <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
     <![endif]-->
 
-    <div class="app container">
+    <div class="app">
       <div class="header">
       </div>
+      <div class="app-content">
 
-      <div class="col-md-4 jumbotron">
-        <div class="row">
-            <h2></h2>
+        <div class="jumbotron">
+            <div class="row">
+                <h2></h2>
+            </div>
+            <div class="row">
+                <div class="col-md-12 col-sm-6 graph-summary"></div>
+                <div class="col-md-12 col-sm-6 graph-controls"></div>
+            </div>
         </div>
-        <div class="row">
-            <div class="col-md-12 col-sm-6 graph-summary"></div>
-            <div class="col-md-12 col-sm-6 graph-controls"></div>
-        </div>
-      </div>
 
-      <div class="col-md-8 row graph-container"></div>
+        <div class="row graph-container"></div>
+      </app>
 
     </div>
 

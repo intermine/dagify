@@ -8,3 +8,14 @@
     fill: #555;
     stroke-width: 1.5px;
 }
+
+.grid-line {
+  fill: none;
+  stroke: #eee;
+  stroke-width: 1;
+}
+
+.grid-line.thin {
+  stroke-width: 0.5;
+}
+
