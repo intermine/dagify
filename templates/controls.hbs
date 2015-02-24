@@ -19,4 +19,12 @@
       </select>
     </div>
   </div>
+  <div class="form-group leaves">
+    <label class="control-label col-sm-12">Leaf Nodes</label>
+    {{#each leaves}}
+      <div class="checkbox">
+        {{checkbox value value visible}}
+      </div>
+    {{/each}}
+  </div>
 </form>
