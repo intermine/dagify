@@ -1,3 +1,5 @@
+@import url(http://fonts.googleapis.com/css?family=Bangers);
+
 .browsehappy {
   margin: 0.2em 0;
   background: #ccc;
@@ -22,15 +24,31 @@ body {
 /* Custom page header */
 .header {
   border-bottom: 1px solid #e5e5e5;
+  background: rgb(164, 89, 138);
+  padding: 15px 5px;
+  margin-top: -20px;
+}
+
+.header .nav-pills > li > a {
+    color: rgb(98, 12, 68);
+}
+.header .nav-pills > li.active > a,
+.header .nav-pills > li.active > a:hover,
+.header .nav-pills > li.active > a:focus {
+    background: rgb(98, 12, 68);
+    color: white;
 }
 
 /* Make the masthead heading the same height as the navigation */
-.header h3 {
+.header .brand  {
   margin-top: 0;
   margin-bottom: 0;
   margin-left: 2em;
   line-height: 40px;
   padding-bottom: 19px;
+  color: rgb(98, 12, 68);
+  font-family: 'Bangers', cursive;
+  font-size: 42px;
 }
 
 /* Custom page footer */
