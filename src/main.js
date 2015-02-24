@@ -23,7 +23,7 @@ if (!Backbone.$) {
 
 function main () {
   var header    = document.querySelector('.app > .header')
-    , heading = document.querySelector('.app > .jumbotron h2')
+    , heading = document.querySelector('.app-content > .jumbotron h2')
     , container = document.querySelector('.graph-container')
     , summary   = document.querySelector('.graph-summary')
     , controls  = document.querySelector('.graph-controls')

@@ -51,8 +51,9 @@ module.exports = function (element, graph) {
     return zoom.translate([x, 20])
                .scale(initialScale);
   };
-  svg.attr('width', element.getBoundingClientRect().width - 20);
-  svg.attr('height', meta.height * initialScale + 40);
+  var bbox = element.getBoundingClientRect();
+  svg.attr('width', bbox.width - 20);
+  svg.attr('height', bbox.height);
   center().event(svg);
 
   // Return a function to update this rendered representation.

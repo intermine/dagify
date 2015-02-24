@@ -21,13 +21,19 @@ var ControlsView = BaseView.extend({
   data: function () {
     return _.extend(this.model.toJSON(), {
       layouts: layouts,
-      roots: this.getRoots()
+      roots: this.getRoots(),
+      leaves: this.getLeaves()
     });
   },
   getRoots: function () {
     return [{label: ':all', value: null}].concat(this.model.get('roots').map(function (r) {
       return {label: r, value: r};
     }));
+  },
+  getLeaves: function () {
+    return this.model.get('leaves').map(function (leafId) {
+      return {value: leafId, visible: true};
+    });
   },
   changeLayout: function (event) {
     var rankdir = event.target.value;

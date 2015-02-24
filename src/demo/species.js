@@ -7,7 +7,8 @@ var opts = {
   rankdir: 'tb',
   rootName: 'evolutionary tree',
   currentRoot: null,
-  roots: []
+  roots: [],
+  leaves: []
 };
 
 var SpeciesWidget = {
@@ -69,6 +70,9 @@ module.exports = function load (container, summary, controls) {
         widget.graphState.set({roots: sinks});
       }
     }
+    widget.graphState.set({
+      leaves: graph.sources()
+    });
   });
   widget.graphState.on('change:currentRoot', function (m, v) {
     console.log('root', v);
