@@ -1,5 +1,10 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+!function(e){if("object"==typeof exports&&"undefined"!=typeof module)module.exports=e();else if("function"==typeof define&&define.amd)define([],e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.dagify=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 'use strict';
+
+/**
+ * Render the graph to an element, and supply a function that
+ * can be used to update the graph.
+ */
 
 var d3 = require('d3');
 var dagreD3 = require('dagre-d3');
@@ -14,6 +19,8 @@ function getZoomHandler (selection) {
     selection.attr('transform', getZoomTranslation(d3.event));
   };
 }
+
+var UNDIRECTED = function () {};
 
 module.exports = function (element, graph) {
   element.innerHTML = template();
@@ -30,13 +37,14 @@ module.exports = function (element, graph) {
   // Create the renderer
   var render = new dagreD3.render();
 
-  render.arrows().none = function () {}; // Edges without arrows.
+  // Register an undirected arrow (ie. one without a point).
+  render.arrows().none = UNDIRECTED;
 
   // Run the renderer. This is what draws the final graph.
   render(inner, graph);
 
   // Center the graph
-  var initialScale = 0.75;
+  var initialScale = 0.7;
   var meta = graph.graph();
   var center = function () {
     var meta = graph.graph();
@@ -44,8 +52,9 @@ module.exports = function (element, graph) {
     return zoom.translate([x, 20])
                .scale(initialScale);
   };
-  svg.attr('width', element.getBoundingClientRect().width);
-  svg.attr('height', meta.height * initialScale + 40);
+  var bbox = element.getBoundingClientRect();
+  svg.attr('width', bbox.width - 20);
+  svg.attr('height', bbox.height);
   center().event(svg);
 
   // Return a function to update this rendered representation.
@@ -109,15 +118,15 @@ module.exports = function buildGraph (widget) {
 var Backbone = require('backbone');
 
 var GraphState = Backbone.Model.extend({
-  initialize: function () {
-    this.set({rankdir: 'lr'});
+  defaults: function () {
+    return {rankdir: 'lr'};
   }
 });
 module.exports = GraphState;
 
 },{"backbone":9}],4:[function(require,module,exports){
 var Handlebars = require("handlebars");module.exports = Handlebars.template({"compiler":[6,">= 2.0.0-beta.1"],"main":function(depth0,helpers,partials,data) {
-  return "<svg><g></g></svg>\n";
+  return "<svg>\n  <defs>\n    <pattern id=\"smallGrid\" width=\"8\" height=\"8\" patternUnits=\"userSpaceOnUse\">\n      <path d=\"M 8 0 L 0 0 0 8\" class=\"grid-line thin\"/>\n    </pattern>\n    <pattern id=\"grid\" width=\"80\" height=\"80\" patternUnits=\"userSpaceOnUse\">\n      <rect width=\"80\" height=\"80\" fill=\"url(#smallGrid)\"/>\n      <path d=\"M 80 0 L 0 0 0 80\" class=\"grid-line\"/>\n    </pattern>\n  </defs>\n  <rect width=\"100%\" height=\"100%\" fill=\"url(#grid)\" />\n  <g></g>\n</svg>\n";
   },"useData":true});
 },{"handlebars":125}],5:[function(require,module,exports){
 var Handlebars = require("handlebars");module.exports = Handlebars.template({"compiler":[6,">= 2.0.0-beta.1"],"main":function(depth0,helpers,partials,data) {
@@ -142,6 +151,8 @@ var PrivateAPI = require('./widget/private-api');
 // The Graph state model.
 var GraphState = require('./models/graph-state');
 
+// These collection don't have any custom behaviour, but
+// you would add it here if the need some.
 var Nodes = Backbone.Collection.extend({
   model: Backbone.Model
 });
@@ -153,24 +164,48 @@ var Edges = Backbone.Collection.extend({
 //   * graphState :: Model
 //   * nodes :: Collection
 //   * edges :: Collection
-var Widget = module.exports = function Widget (data) {
-  this.graphState = new GraphState();
-  this.nodes = new Nodes(data.nodes);
-  this.edges = new Edges(data.edges);
+// Injects methods onto the object - Feel free to subclass.
+var DagWidget = module.exports = function Widget (data, methods) {
+  if (!(this instanceof DagWidget)) return new Widget(data, methods);
+
+  if (methods) _.extend(this, _.pick(methods, _.keys(AbstractAPI)));
+  this.graphState = new GraphState(data && data.opts);
+  this.nodes = new Nodes(data && data.nodes);
+  this.edges = new Edges(data && data.edges);
+
+  if (data && data.el) {
+    this.setElement(data.el);
+  }
+  if (data && data.summaryEl) {
+    this.setSummaryElement(data.summaryEl);
+  }
 
   this.listenTo(this.graphState, 'change', this.update);
   this.listenTo(this.nodes, 'add remove reset', this.update);
   this.listenTo(this.edges, 'add remove reset', this.update);
 };
 
-Widget.prototype = _.extend(
-  {
+// The methods of Widget
+_.extend(DagWidget.prototype, {
+
+    // The public API of this widget:
+
+    // Set the main element.
+    setElement: function (el) {
+      this.graphElement = getElement(el);
+    },
+    // Set the summary element.
+    setSummaryElement: function (el) {
+      this.summaryElement = getElement(el);
+    },
+    // Traverse nodes.
     eachNode: function (forEach) {
       var filter = this._canReachCurrentRoot();
       this.nodes
           .filter(filter)
           .forEach(forEach);
     },
+    // Traverse edges
     eachEdge: function (forEach) {
       var canReach = this._canReachCurrentRoot();
       var filter = function (edge) {
@@ -183,22 +218,39 @@ Widget.prototype = _.extend(
           .filter(filter)
           .forEach(forEach);
     },
+    // Update the graph and its summary.
     update: function () {
       this._updateGraph();
       this._renderSummary();
     }, 
+    // Render.
     render: function () {
       this._renderGraph();
       this._renderSummary();
     }
   }
-  , AbstractAPI
-  , PrivateAPI
+  , AbstractAPI // The default callbacks.
+  , PrivateAPI  // The methods clients should not care about.
   , Backbone.Events // Mixins..
 );
 
+function getElement (elOrSelector) {
+  if (_.isString(elOrSelector)) {
+    return document.querySelector(elOrSelector);
+  } else {
+    return elOrSelector;
+  }
+}
+
 },{"./models/graph-state":3,"./widget/abstract-api":7,"./widget/private-api":8,"backbone":9,"underscore":126}],7:[function(require,module,exports){
 'use strict';
+
+/*
+ * These are the default values for the methods that may
+ * be overriden/re-implemented on the widgets. As such they
+ * define useful defaults, but won't be applicable for every
+ * use case.
+ */
 
 // Assumes nodes are: {label, id}
 function simpleGetLabel (obj) {
@@ -240,6 +292,7 @@ module.exports = {
 'use strict';
 
 var _ = require('underscore');
+// A function that renders a graph and returns a function to update it.
 var renderGraph = require('../d3/render-graph');
 var summaryTemplate = require('../templates/graph.summary');
 var buildGraph = require('../logic/build-graph');
@@ -28066,4 +28119,5 @@ if (typeof require !== 'undefined' && require.extensions) {
 
 },{"../dist/cjs/handlebars":110,"../dist/cjs/handlebars/compiler/printer":119,"../dist/cjs/handlebars/compiler/visitor":120,"fs":11}],126:[function(require,module,exports){
 module.exports=require(10)
-},{"/home/alex/projects/js/dagify/node_modules/backbone/node_modules/underscore/underscore.js":10}]},{},[6]);
+},{"/home/alex/projects/js/dagify/node_modules/backbone/node_modules/underscore/underscore.js":10}]},{},[6])(6)
+});

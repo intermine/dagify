@@ -1,10 +1,11 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+!function(e){if("object"==typeof exports&&"undefined"!=typeof module)module.exports=e();else if("function"==typeof define&&define.amd)define([],e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.dagify=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 'use strict';
 
+var _ = require('underscore');
 var Backbone = require('backbone');
 var string = require('underscore.string');
 
-var Router = Backbone.View.extend({
+var Router = module.exports = Backbone.View.extend({
   initialize: function () {
     this.listenTo(this.model, 'change:page', this.changeTabState);
   },
@@ -15,24 +16,28 @@ var Router = Backbone.View.extend({
     this.$('li').removeClass('active');
     this.$('li.' + page).addClass('active');
   },
+  setPage: function (page) {
+    this.model.set({page: page});
+  },
   events: function () {
-    var events = {};
-    var state = this.model;
-    this.sections.forEach(function (page) {
-      events['click li.' + page] = state.set.bind(state, {page: page});
-    });
-    return events;
+    var self = this;
+    return _.object(this.sections.map(function (page) {
+      return ['click li.' + page, self.setPage.bind(self, page)];
+    }));
+  },
+  data: function () {
+    return {sections: this.sections.map(sectionData)}
   },
   render: function () {
-    this.$el.html(this.template({sections: this.sections.map(function (s) {
-      return {id: s, name: string.capitalize(s)};
-    })}));
+    this.$el.html(this.template(this.data()));
   }
 });
 
-module.exports = Router;
+function sectionData (s) {
+  return {id: s, name: string.capitalize(s)};
+}
 
-},{"./templates/nav-pills":2,"backbone":3,"underscore.string":22}],2:[function(require,module,exports){
+},{"./templates/nav-pills":2,"backbone":3,"underscore":23,"underscore.string":22}],2:[function(require,module,exports){
 var Handlebars = require("handlebars");module.exports = Handlebars.template({"1":function(depth0,helpers,partials,data) {
   var helper, functionType="function", helperMissing=helpers.helperMissing, escapeExpression=this.escapeExpression;
   return "    <li class=\""
@@ -46,7 +51,7 @@ var Handlebars = require("handlebars");module.exports = Handlebars.template({"1"
   var stack1, buffer = "<ul class=\"nav nav-pills pull-right\">\n";
   stack1 = helpers.each.call(depth0, (depth0 != null ? depth0.sections : depth0), {"name":"each","hash":{},"fn":this.program(1, data),"inverse":this.noop,"data":data});
   if (stack1 != null) { buffer += stack1; }
-  return buffer + "</ul>\n<h3 class=\"text-muted\">dagify</h3>\n\n";
+  return buffer + "</ul>\n<h3 class=\"brand text-muted\">dagify</h3>\n\n";
 },"useData":true});
 },{"handlebars":21}],3:[function(require,module,exports){
 //     Backbone.js 1.1.2
@@ -6911,4 +6916,7 @@ if (typeof require !== 'undefined' && require.extensions) {
   root._.string = root._.str = _s;
 }(this, String);
 
-},{}]},{},[1]);
+},{}],23:[function(require,module,exports){
+module.exports=require(4)
+},{"/home/alex/projects/js/dagify/node_modules/backbone/node_modules/underscore/underscore.js":4}]},{},[1])(1)
+});

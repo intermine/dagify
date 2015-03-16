@@ -1,7 +1,7 @@
 'use strict';
 
 var Backbone = require('backbone');
-
+var jquery = require('jquery');
 var Router = require('./router');
 
 var routes = {
@@ -14,12 +14,7 @@ var routes = {
 var TitleView = require('./views/title');
 
 // Propagate jQuery.
-Backbone.$ = (window.jQuery || window.Zepto);
-
-if (!Backbone.$) {
-  // No point in continuing here.
-  throw new Error('We need at least one of jQuery or Zepto');
-}
+Backbone.$ = jquery;
 
 function main () {
   var header    = document.querySelector('.app > .header')

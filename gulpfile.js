@@ -135,9 +135,13 @@ gulp.task('watch', ['browserify', 'connect', 'serve'], function () {
   gulp.watch('app/styles/**/*.css', ['styles']);
 });
 
+// Browserify all the top level files.
 gulp.task('browserify', ['compile', 'templates'], function () {
   var browserified = transform(function(filename) {
-    var b = browserify(filename);
+    var b = browserify({
+      entries: [filename],
+      standalone: 'dagify'
+    });
     return b.bundle();
   });
   return gulp.src(['./build/*.js'])
