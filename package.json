@@ -16,7 +16,8 @@
   "scripts": {
     "build": "gulp",
     "start": "gulp watch",
-    "test": "mocha"
+    "test": "mocha",
+    "postinstall": "bower install --allow-root"
   },
   "dependencies": {
     "backbone": "^1.1.2",
@@ -55,7 +56,7 @@
     "opn": "^0.1.1",
     "serve-index": "^1.1.4",
     "serve-static": "^1.4.0",
-    "vinyl-transform": "0.0.1",
+    "vinyl-transform": "1.0.0",
     "wiredep": "^1.4.3"
   }
 }

@@ -50,7 +50,7 @@ _.extend(DagWidget.prototype, {
 
     // The public API of this widget:
 
-    // Set the main element.
+    // Set the main element, as per normal backbone views.
     setElement: function (el) {
       this.graphElement = getElement(el);
     },
@@ -87,6 +87,20 @@ _.extend(DagWidget.prototype, {
     render: function () {
       this._renderGraph();
       this._renderSummary();
+      return this;
+    },
+    // Remove - part of the backbone-ish standard API.
+    remove: function () {
+      this.off();
+      this.stopListening();
+      if (this.graphElement) {
+        this.graphElement.innerHTML = '';
+        this.graphElement.remove();
+      }
+      if (this.summaryEl) {
+        this.summaryEl.innerHTML = '';
+        this.summaryEl.remove();
+      }
     }
   }
   , AbstractAPI // The default callbacks.

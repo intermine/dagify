@@ -24,8 +24,8 @@ function browserifyHandler(err){
   this.end();
 }
 
-gulp.task('templates', function(){
-  gulp.src(['templates/*.hbs'])
+gulp.task('templates', ['clean'], function(){
+  return gulp.src(['templates/*.hbs'])
       .pipe(handlebars())
       .pipe(defineModule('node'))
       .pipe(gulp.dest('build/templates/'));
@@ -37,7 +37,7 @@ gulp.task('styles', function () {
     .pipe(gulp.dest('.tmp/styles'));
 });
 
-gulp.task('compile', function () {
+gulp.task('compile', ['clean'], function () {
   // At present just move source files, (which are JS) to build dir.
   return gulp.src('./src/**/*').pipe(gulp.dest('build'));
 });
@@ -82,7 +82,7 @@ gulp.task('extras', function () {
     .pipe(gulp.dest('dist'));
 });
 
-gulp.task('clean', require('del').bind(null, ['.tmp', 'build', 'dist']));
+gulp.task('clean', require('del').bind(null, ['.tmp/**', 'build/**']));
 
 var port = (process.env.PORT || 9000);
 var liveReloadPort = (process.env.LIVE_RL_PORT || 35729);
@@ -107,7 +107,7 @@ gulp.task('connect', function () {
 });
 
 gulp.task('serve', ['connect'], function () {
-  require('opn')('http://localhost:' + port);
+  return require('opn')('http://localhost:' + port);
 });
 
 // inject bower components
@@ -117,7 +117,7 @@ gulp.task('wiredep', function () {
     .pipe(gulp.dest('app'));
 });
 
-gulp.task('watch', ['browserify', 'connect', 'serve'], function () {
+gulp.task('watch', ['clean', 'browserify', 'connect', 'serve'], function () {
   $.livereload.listen();
 
   // watch for changes
@@ -138,6 +138,7 @@ gulp.task('watch', ['browserify', 'connect', 'serve'], function () {
 // Browserify all the top level files.
 gulp.task('browserify', ['compile', 'templates'], function () {
   var browserified = transform(function(filename) {
+    util.log("Bundling", filename);
     var b = browserify({
       entries: [filename],
       standalone: 'dagify'
