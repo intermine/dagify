@@ -1,9 +1,16 @@
 {
   "name": "dagify",
-  "private": true,
+  "version": "0.2.0",
+  "repository": "intermine/dagify",
+  "license": "LGPL",
+  "main": [
+    "app/scripts/widget.js",
+    "app/styles/svg.css"
+  ],
   "devDependencies": {
     "bootstrap": "~3.3.0",
-    "modernizr": "~2.8.1"
+    "modernizr": "~2.8.1",
+    "fontawesome": "~4.3.0"
   },
   "overrides": {
     "modernizr": {
